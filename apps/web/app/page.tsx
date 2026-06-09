@@ -1,205 +1,200 @@
 import Link from "next/link";
-import { GeistPixelSquare } from "geist/font/pixel";
-import { HeroTerminal } from "@/components/hero-terminal";
 
-export default function LandingPage() {
+const QUICK_START = `# Start the Foundry emulator on its own
+npx @nyrra/emulate --service foundry
+
+# Verify it is running (uses the bundled foundry_test_token)
+curl -H "Authorization: Bearer foundry_test_token" \\
+  http://localhost:4000/multipass/api/me`;
+
+const CLI = `# Start the default startup set
+emulate
+
+# Start specific services (Foundry first keeps it on the base port)
+emulate --service foundry,github
+
+# Custom base port (auto-increments per service)
+emulate --port 3000
+
+# Use a seed config file
+emulate --seed emulate.config.yaml
+
+# Generate a starter config for Foundry
+emulate init --service foundry
+
+# List available services
+emulate list`;
+
+const DEFAULT_STARTUP = [
+  { label: "Vercel", port: 4000 },
+  { label: "GitHub", port: 4001 },
+  { label: "Google", port: 4002 },
+  { label: "Slack", port: 4003 },
+  { label: "Apple", port: 4004 },
+  { label: "Microsoft Entra ID", port: 4005 },
+  { label: "AWS", port: 4006 },
+];
+
+const SUPPORTED_SERVICES_PROSE =
+  "Apple, AWS, Clerk, GitHub, Google, Microsoft, MongoDB Atlas, Okta, Resend, Slack, Stripe, and Vercel";
+
+const link =
+  "text-neutral-900 underline decoration-neutral-300 underline-offset-2 hover:decoration-neutral-900 dark:text-neutral-100 dark:decoration-neutral-700 dark:hover:decoration-neutral-100";
+const inlineCode = "rounded bg-neutral-100 px-1.5 py-0.5 text-[13px] dark:bg-neutral-800";
+const h2 = "mb-4 mt-12 text-lg font-semibold text-neutral-900 dark:text-neutral-100";
+const p = "mb-4 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400";
+
+function CodeBlock({ code }: { code: string }) {
   return (
-    <div className="relative">
-      {/* Hero */}
-      <section className="mx-auto max-w-3xl px-6 pb-20 pt-16 sm:pt-24">
-        <h1 className="mb-4 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl dark:text-neutral-50">
-          Local API emulation for dev and CI
-        </h1>
-        <p className="mb-8 max-w-xl text-base text-neutral-600 dark:text-neutral-400">
-          Stateful, production-fidelity replacements for Stripe, GitHub, Google, AWS, and 7 more services. No API keys.
-          No network. Not mocks.
-        </p>
+    <pre className="my-4 overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-[13px] leading-relaxed dark:border-neutral-800 dark:bg-neutral-900">
+      <code className="font-mono text-neutral-800 dark:text-neutral-200">{code}</code>
+    </pre>
+  );
+}
 
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <Link
-            href="/docs"
-            className="inline-flex h-9 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
-          >
-            Get started
-          </Link>
-          <a
-            href="https://github.com/vercel-labs/emulate"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-neutral-200 px-4 text-sm text-neutral-700 hover:border-neutral-300 dark:border-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-700"
-          >
-            <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            Source
-          </a>
-        </div>
+export default function HomePage() {
+  return (
+    <div className="mx-auto max-w-3xl px-6 py-12 lg:py-16">
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+        Local Foundry Emulation
+      </h1>
 
-        {/* Terminal */}
-        <HeroTerminal pixelFont={GeistPixelSquare.className} />
-      </section>
+      <p className={p}>
+        FoundryCI is a Nyrra project that runs Palantir Foundry locally for CI and no-network sandboxes. It emulates the
+        OAuth 2.0, current-user, and compute-module routes Foundry clients depend on, with production-fidelity state
+        instead of mocks. FoundryCI is built on{" "}
+        <a className={link} href="https://github.com/vercel-labs/emulate" target="_blank" rel="noopener noreferrer">
+          emulate by Vercel Labs
+        </a>
+        , so the same process can also stand in for {SUPPORTED_SERVICES_PROSE} inside your test runs.
+      </p>
 
-      {/* What you get */}
-      <section className="border-t border-neutral-200 dark:border-neutral-800">
-        <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
-          <h2 className="mb-6 text-lg font-semibold text-neutral-900 dark:text-neutral-100">What this gives you</h2>
-          <div className="grid gap-x-12 gap-y-6 sm:grid-cols-2">
-            <div>
-              <h3 className="mb-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">Stateful</h3>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Create a GitHub repo, push commits, open a PR. Send an email through Resend. Charge a card on Stripe.
-                State persists across requests.
-              </p>
-            </div>
-            <div>
-              <h3 className="mb-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">Real protocols</h3>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                OAuth flows with RS256 ID tokens. AWS XML responses. Slack cursor pagination. Your SDK works without
-                changes.
-              </p>
-            </div>
-            <div>
-              <h3 className="mb-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">Zero config</h3>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Run <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs dark:bg-neutral-800">npx emulate</code>{" "}
-                and all 11 services start with sensible defaults. Seed data via YAML when you need it.
-              </p>
-            </div>
-            <div>
-              <h3 className="mb-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">Offline and CI-ready</h3>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                No network, no Docker, no flaky sandbox accounts. Same deterministic behavior in GitHub Actions as on
-                your laptop.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <h2 className={`${h2} first:mt-0`}>Start with Foundry</h2>
 
-      {/* Code example */}
-      <section className="border-t border-neutral-200 dark:border-neutral-800">
-        <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
-          <h2 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-            Point your SDK at localhost
-          </h2>
-          <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-400">
-            Your existing code stays the same. Just change the host.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col">
-              <div className="mb-2 text-xs font-medium text-neutral-500 dark:text-neutral-500">Before</div>
-              <div className="flex-1 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-950 dark:border-neutral-800">
-                <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-neutral-400 font-mono">
-                  <code>{`const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY
-)
+      <p className={p}>
+        FoundryCI should get you to local Foundry first, not make you hunt through generic emulate docs. These are the
+        pages to start with:
+      </p>
 
-// needs network
-// needs a test-mode account
-// rate-limited`}</code>
-                </pre>
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <div className="mb-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">With emulate</div>
-              <div className="flex-1 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-950 dark:border-neutral-800">
-                <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-neutral-400 font-mono">
-                  <code>
-                    <span>{`const stripe = new Stripe("anything")
-stripe.config.host = `}</span>
-                    <span className="text-emerald-400">{`"localhost"`}</span>
-                    {`\nstripe.config.port = `}
-                    <span className="text-emerald-400">{`4010`}</span>
-                    {`\nstripe.config.protocol = `}
-                    <span className="text-emerald-400">{`"http"`}</span>
-                    {`\n\n// offline, instant, stateful`}
-                  </code>
-                </pre>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-neutral-600 dark:text-neutral-400">
+        <li>
+          <Link className={link} href="/docs/foundry/getting-started">
+            Getting Started
+          </Link>{" "}
+          shows the fastest path to a local Foundry process, seed config, and a first verification request.
+        </li>
+        <li>
+          <Link className={link} href="/docs/foundry/reference/endpoints">
+            Endpoint Reference
+          </Link>{" "}
+          covers the OAuth 2.0 endpoints, current-user lookup, compute-module runtime, and contour job routes.
+        </li>
+        <li>
+          <Link className={link} href="/docs/configuration">
+            Configuration
+          </Link>{" "}
+          shows the seed config for users, OAuth clients, deployed apps, and compute-module runtimes.
+        </li>
+      </ul>
 
-      {/* Usage modes */}
-      <section className="border-t border-neutral-200 dark:border-neutral-800">
-        <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
-          <h2 className="mb-6 text-lg font-semibold text-neutral-900 dark:text-neutral-100">Use it your way</h2>
-          <div className="space-y-4">
-            <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-              <div className="mb-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">CLI</div>
-              <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-                Run alongside your dev server. Pick which services you need.
-              </p>
-              <div className="overflow-x-auto rounded-md bg-neutral-100 px-3 py-2 font-mono text-xs text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                npx emulate --service github,stripe
-              </div>
-            </div>
-            <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-              <div className="mb-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">Programmatic API</div>
-              <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-                Import into Vitest or Jest. Start per-suite, reset between tests.
-              </p>
-              <div className="overflow-hidden rounded-md bg-neutral-100 dark:bg-neutral-900">
-                <pre className="overflow-x-auto px-3 py-2 font-mono text-xs text-neutral-700 dark:text-neutral-300">
-                  <code>{`import { createEmulator } from "emulate"
+      <p className={p}>
+        Bring up the Foundry emulator with <code className={inlineCode}>npx @nyrra/emulate --service foundry</code> or
+        include <code className={inlineCode}>foundry:</code> in the seed config. When Foundry runs by itself, its base
+        URL is <code className={inlineCode}>http://localhost:4000</code>.
+      </p>
 
-const github = await createEmulator({ service: "github", port: 4001 })
-afterEach(() => github.reset())
-afterAll(() => github.close())`}</code>
-                </pre>
-              </div>
-            </div>
-            <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-              <div className="mb-1 text-sm font-medium text-neutral-900 dark:text-neutral-100">Next.js adapter</div>
-              <p className="mb-3 text-sm text-neutral-600 dark:text-neutral-400">
-                Embed in your app. Same origin, no CORS issues, works on Vercel preview deployments.
-              </p>
-              <div className="overflow-x-auto rounded-md bg-neutral-100 px-3 py-2 font-mono text-xs text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                npm install @emulators/adapter-next @emulators/github
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <h2 className={h2}>Foundry Quick Start</h2>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-200 dark:border-neutral-800">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-2 text-sm text-neutral-500">
-            <Link
-              href="https://vercel.com"
-              className="hover:text-neutral-900 dark:hover:text-neutral-300 transition-colors"
-            >
-              <svg height="14" strokeLinejoin="round" viewBox="0 0 16 16" width="14" style={{ color: "currentcolor" }}>
-                <path fillRule="evenodd" clipRule="evenodd" d="M8 1L16 15H0L8 1Z" fill="currentColor" />
-              </svg>
-            </Link>
-            <span className="dark:text-neutral-500">Vercel Labs</span>
-          </div>
-          <div className="flex items-center gap-4 text-xs text-neutral-500">
-            <Link href="/docs" className="hover:text-neutral-900 dark:hover:text-neutral-300 transition-colors">
-              Docs
-            </Link>
-            <a
-              href="https://github.com/vercel-labs/emulate"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-neutral-900 dark:hover:text-neutral-300 transition-colors"
-            >
-              GitHub
-            </a>
-            <a
-              href="https://www.npmjs.com/package/emulate"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-neutral-900 dark:hover:text-neutral-300 transition-colors"
-            >
-              npm
-            </a>
-          </div>
-        </div>
-      </footer>
+      <CodeBlock code={QUICK_START} />
+
+      <p className={p}>
+        Set <code className={inlineCode}>FOUNDRY_EMULATOR_URL=http://localhost:4000</code> when Foundry is running on its
+        own. If you launch more than one service, use the startup banner to see which port Foundry received.
+      </p>
+
+      <h2 className={h2}>Default Startup Set</h2>
+
+      <p className={p}>
+        The generic multi-service emulate stack is still available. It starts with sensible defaults and keeps Foundry
+        out of the default list unless you opt in:
+      </p>
+
+      <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-neutral-600 dark:text-neutral-400">
+        {DEFAULT_STARTUP.map((service) => (
+          <li key={service.label}>
+            <strong className="font-medium text-neutral-900 dark:text-neutral-100">{service.label}</strong> on{" "}
+            <code className={inlineCode}>http://localhost:{service.port}</code>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className={h2}>CLI</h2>
+
+      <CodeBlock code={CLI} />
+
+      <h2 className={h2}>Options</h2>
+
+      <div className="my-4 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-neutral-200 dark:border-neutral-800">
+              <th className="pb-2 pr-4 text-left font-medium text-neutral-900 dark:text-neutral-100">Flag</th>
+              <th className="pb-2 pr-4 text-left font-medium text-neutral-900 dark:text-neutral-100">Default</th>
+              <th className="pb-2 text-left font-medium text-neutral-900 dark:text-neutral-100">Description</th>
+            </tr>
+          </thead>
+          <tbody className="text-neutral-600 dark:text-neutral-400">
+            <tr className="border-b border-neutral-100 dark:border-neutral-800/50">
+              <td className="py-2 pr-4">
+                <code className={inlineCode}>-p, --port</code>
+              </td>
+              <td className="py-2 pr-4">
+                <code className={inlineCode}>4000</code>
+              </td>
+              <td className="py-2">Base port (auto-increments per service)</td>
+            </tr>
+            <tr className="border-b border-neutral-100 dark:border-neutral-800/50">
+              <td className="py-2 pr-4">
+                <code className={inlineCode}>-s, --service</code>
+              </td>
+              <td className="py-2 pr-4">default startup set</td>
+              <td className="py-2">Comma-separated services to enable</td>
+            </tr>
+            <tr>
+              <td className="py-2 pr-4">
+                <code className={inlineCode}>--seed</code>
+              </td>
+              <td className="py-2 pr-4">auto-detect</td>
+              <td className="py-2">Path to seed config (YAML or JSON)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className={p}>
+        The port can also be set via <code className={inlineCode}>EMULATE_PORT</code> or{" "}
+        <code className={inlineCode}>PORT</code> environment variables.
+      </p>
+
+      <h2 className={h2}>Programmatic API</h2>
+
+      <p className={p}>
+        You can also use emulate as a library in your tests. See the{" "}
+        <Link className={link} href="/docs/programmatic-api">
+          Programmatic API
+        </Link>{" "}
+        page for <code className={inlineCode}>createEmulator</code>, Vitest/Jest setup, and instance methods.
+      </p>
+
+      <h2 className={h2}>Next.js Integration</h2>
+
+      <p className={p}>
+        Embed emulators directly in your Next.js app so they run on the same origin. See the{" "}
+        <Link className={link} href="/docs/nextjs">
+          Next.js Integration
+        </Link>{" "}
+        page for setup instructions.
+      </p>
     </div>
   );
 }
