@@ -1,4 +1,4 @@
-const REPO = "vercel-labs/emulate";
+const REPO = "nyrra-labs/nyrra-emulate";
 const REVALIDATE = 86400;
 
 export async function getStarCount(): Promise<string> {

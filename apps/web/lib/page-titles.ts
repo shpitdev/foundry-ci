@@ -1,5 +1,5 @@
 export const PAGE_TITLES: Record<string, string> = {
-  "": "Local API Emulation\nfor CI and Sandboxes",
+  "": "Local Foundry\nEmulation",
   "programmatic-api": "Programmatic API",
   configuration: "Configuration",
   nextjs: "Next.js Integration",
