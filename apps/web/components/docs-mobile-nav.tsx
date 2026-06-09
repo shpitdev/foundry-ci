@@ -20,6 +20,40 @@ const sections: NavSection[] = [
     ],
   },
   {
+    title: "Foundry",
+    items: [{ href: "/docs/foundry/getting-started", label: "Getting Started" }],
+  },
+  {
+    title: "Foundry · Auth",
+    items: [
+      { href: "/docs/foundry/auth/oauth", label: "OAuth 2.0" },
+      { href: "/docs/foundry/auth/client-credentials", label: "Client Credentials" },
+      { href: "/docs/foundry/auth/refresh-tokens", label: "Refresh Tokens" },
+      { href: "/docs/foundry/auth/scopes", label: "Scopes" },
+      { href: "/docs/foundry/auth/current-user", label: "Current User" },
+    ],
+  },
+  {
+    title: "Foundry · Admin",
+    items: [{ href: "/docs/foundry/admin/users", label: "Users" }],
+  },
+  {
+    title: "Foundry · Compute Modules",
+    items: [
+      { href: "/docs/foundry/compute-modules/overview", label: "Overview" },
+      { href: "/docs/foundry/compute-modules/runtimes", label: "Runtimes" },
+      { href: "/docs/foundry/compute-modules/jobs", label: "Jobs" },
+    ],
+  },
+  {
+    title: "Foundry · Reference",
+    items: [
+      { href: "/docs/foundry/reference/seed-config", label: "Seed Config" },
+      { href: "/docs/foundry/reference/endpoints", label: "Endpoints" },
+      { href: "/docs/foundry/reference/scope-matrix", label: "Scope Matrix" },
+    ],
+  },
+  {
     title: "Services",
     items: [
       { href: "/docs/vercel", label: "Vercel" },
