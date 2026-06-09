@@ -15,7 +15,8 @@
     "release:emulate:pack": "pnpm run release:emulate:prepare && npm pack ./packages/emulate/.release",
     "release:emulate:publish:dry-run": "pnpm run release:emulate:prepare && npm publish ./packages/emulate/.release --dry-run --access public",
     "docs:sync": "node --experimental-strip-types packages/docs-upstream/src/sync.ts",
-    "docs:sync:check": "node --experimental-strip-types packages/docs-upstream/src/sync.ts --check"
+    "docs:sync:check": "node --experimental-strip-types packages/docs-upstream/src/sync.ts --check",
+    "sync-versions": "node scripts/sync-versions.mjs"
   },
   "devDependencies": {
     "@types/node": "^22",
@@ -29,7 +30,7 @@
   },
   "packageManager": "pnpm@10.11.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

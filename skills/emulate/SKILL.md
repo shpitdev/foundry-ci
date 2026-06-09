@@ -43,10 +43,10 @@ emulate
 emulate --service vercel,github,foundry
 
 # Custom base port (auto-increments per service)
-emulate --port 3000
+npx emulate --port 3000
 
 # Use a seed config file
-emulate --seed config.yaml
+npx emulate --seed config.yaml
 
 # Launch the interactive starter-config builder
 emulate init
@@ -58,7 +58,7 @@ emulate init --service foundry
 emulate init --service foundry --stdout
 
 # List available services
-emulate list
+npx emulate list
 ```
 
 ### Options
@@ -68,6 +68,8 @@ emulate list
 | `-p, --port` | `4000` | Base port (auto-increments per service) |
 | `-s, --service` | default startup set | Comma-separated services to enable |
 | `--seed` | auto-detect | Path to seed config (YAML or JSON) |
+| `--base-url` | none | Override advertised base URL (supports `{service}` template) |
+| `--portless` | off | Serve over HTTPS via portless (auto-registers aliases) |
 
 The port can also be set via `EMULATE_PORT` or `PORT` environment variables.
 
@@ -79,6 +81,8 @@ The port can also be set via `EMULATE_PORT` or `PORT` environment variables.
 - `emulate init --out ./configs/local.yaml --force` writes to a custom path and overwrites the file when needed.
 
 When Foundry starts, the banner also prints a `Quick start` section with a ready-to-open authorize URL and curl examples for `/multipass/api/me` and `/api/v2/admin/users/getCurrent`.
+
+The advertised base URL (used in OAuth redirects, webhook URLs, etc.) can be overridden via `--base-url`, the `EMULATE_BASE_URL` env var (supports `{service}` template), or per-service `baseUrl` in the seed config. When running under portless, the `PORTLESS_URL` env var is also detected automatically.
 
 ## Programmatic API
 
@@ -111,6 +115,7 @@ await foundry.close()
 | `service` | *(required)* | Registered service name such as `'vercel'`, `'github'`, `'google'`, `'slack'`, `'apple'`, `'microsoft'`, `'aws'`, or `'foundry'` |
 | `port` | `4000` | Port for the HTTP server |
 | `seed` | none | Inline seed data (same shape as YAML config) |
+| `baseUrl` | none | Override advertised base URL. Per-service `baseUrl` in seed config takes highest priority, then this option, then `EMULATE_BASE_URL` env var (supports `{service}`), then `PORTLESS_URL` (supports `{service}`, automatically set by the `portless` CLI wrapper), then `http://localhost:<port>`. |
 
 ### Instance Methods
 
@@ -311,6 +316,46 @@ Each service also has a fallback user. If no token is provided, requests authent
 
 Foundry current-user lookups require `api:admin-read`. The bundled `foundry_test_token` includes that scope, and zero-config Foundry startup gives `test_token_admin` the same scope.
 
+## HTTPS with portless
+
+[portless](https://github.com/vercel-labs/portless) gives emulators trusted HTTPS URLs with auto-generated certs. Use the `--portless` flag to auto-register each service as a portless alias:
+
+```bash
+emulate start --portless
+# github  https://github.emulate.localhost
+# google  https://google.emulate.localhost
+# ...
+```
+
+This requires the portless proxy to be running (`portless proxy start`). If portless is not installed, emulate will prompt to install it.
+
+The `--portless` flag overwrites any existing portless aliases matching `*.emulate`. Aliases are removed automatically when emulate shuts down.
+
+For a single service behind portless:
+
+```bash
+portless github.emulate emulate start --service github
+```
+
+For a custom base URL without portless (any reverse proxy):
+
+```bash
+emulate start --base-url "https://{service}.myproxy.test"
+# or
+EMULATE_BASE_URL="https://{service}.myproxy.test" emulate start
+```
+
+The `PORTLESS_URL` env var is automatically set by the `portless` CLI wrapper when running a command through it (e.g. `portless github.emulate emulate start`), typically to a value like `https://{service}.emulate.localhost`. It supports `{service}` interpolation, just like `--base-url` and `EMULATE_BASE_URL`. When no explicit `baseUrl` is provided, it is used as a fallback.
+
+Per-service overrides in the seed config (these take highest priority over all other base URL sources):
+
+```yaml
+github:
+  baseUrl: https://github.emulate.localhost
+google:
+  baseUrl: https://google.emulate.localhost
+```
+
 ## Pointing Your App at the Emulator
 
 Set environment variables to override real service URLs:
@@ -369,7 +414,7 @@ State is loaded on cold start and saved after every mutating request (POST, PUT,
 packages/
   emulate/           # CLI entry point + programmatic API
   @emulators/
-    core/            # HTTP server (Hono), Store, plugin interface, middleware
+    core/            # HTTP server, Store, plugin interface, middleware
     adapter-next/    # Next.js App Router integration
     vercel/          # Vercel API service plugin
     github/          # GitHub API service plugin
@@ -381,4 +426,4 @@ packages/
     aws/             # AWS S3, SQS, IAM, STS plugin
 ```
 
-The core provides a generic `Store` with typed `Collection<T>` instances supporting CRUD, indexing, filtering, and pagination. Each service plugin registers routes on the shared Hono app and uses the store for state.
+The core provides a generic `Store` with typed `Collection<T>` instances supporting CRUD, indexing, filtering, and pagination. Each service plugin registers routes with the shared internal app and uses the store for state.

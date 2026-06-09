@@ -1,6 +1,4 @@
-import type { Context } from "hono";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
-import type { AppEnv } from "@emulators/core";
+import type { AppEnv, Context, ContentfulStatusCode } from "@emulators/core";
 import { foundryErrorInstanceId } from "./helpers.js";
 
 export function foundryOauthError(

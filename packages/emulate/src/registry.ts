@@ -1,4 +1,4 @@
-import type { ServicePlugin, Store, AppKeyResolver, AuthFallback } from "@emulators/core";
+import type { ServicePlugin, Store, AppKeyResolver, AuthFallback, WebhookDispatcher } from "@emulators/core";
 import { DEFAULT_SERVICE_NAMES, SERVICE_NAMES, type ServiceName } from "./service-names";
 
 export interface InitTokenTemplate {
@@ -10,7 +10,7 @@ export { DEFAULT_SERVICE_NAMES, SERVICE_NAMES, type ServiceName } from "./servic
 
 export interface LoadedService {
   plugin: ServicePlugin;
-  seedFromConfig?(store: Store, baseUrl: string, config: unknown): void;
+  seedFromConfig?(store: Store, baseUrl: string, config: unknown, webhooks?: WebhookDispatcher): void;
   createAppKeyResolver?(store: Store): AppKeyResolver;
 }
 
@@ -206,18 +206,35 @@ export const SERVICE_REGISTRY: Record<ServiceName, ServiceEntry> = {
 
   slack: {
     label: "Slack API emulator",
-    endpoints: "auth, chat, conversations, users, reactions, team, OAuth, incoming webhooks",
+    endpoints:
+      "auth, chat, conversations, users, profiles, presence, files, pins, bookmarks, views, reactions, team, OAuth, incoming webhooks, inspector",
     async load() {
       const mod = await import("@emulators/slack");
       return { plugin: mod.slackPlugin, seedFromConfig: mod.seedFromConfig };
     },
     defaultFallback() {
-      return { login: "U000000001", id: 1, scopes: ["chat:write", "channels:read", "users:read", "reactions:write"] };
+      return {
+        login: "U000000001",
+        id: 1,
+        scopes: [],
+      };
     },
     initConfig: {
       slack: {
         team: { name: "My Workspace", domain: "my-workspace" },
-        users: [{ name: "developer", real_name: "Developer", email: "dev@example.com" }],
+        users: [
+          {
+            name: "developer",
+            real_name: "Developer",
+            email: "dev@example.com",
+            profile: {
+              title: "Local Developer",
+              status_text: "Testing locally",
+              status_emoji: ":computer:",
+            },
+            presence: "active",
+          },
+        ],
         channels: [
           { name: "general", topic: "General discussion" },
           { name: "random", topic: "Random stuff" },
@@ -227,10 +244,45 @@ export const SERVICE_REGISTRY: Record<ServiceName, ServiceEntry> = {
           {
             client_id: "12345.67890",
             client_secret: "example_client_secret",
+            app_id: "A000000001",
             name: "My Slack App",
             redirect_uris: ["http://localhost:3000/api/auth/callback/slack"],
+            scopes: [
+              "chat:write",
+              "channels:read",
+              "channels:history",
+              "channels:join",
+              "channels:manage",
+              "channels:write",
+              "groups:read",
+              "groups:history",
+              "groups:write",
+              "im:read",
+              "im:history",
+              "im:write",
+              "mpim:read",
+              "mpim:history",
+              "mpim:write",
+              "users:read",
+              "users:read.email",
+              "users.profile:read",
+              "users.profile:write",
+              "users:write",
+              "files:read",
+              "files:write",
+              "pins:read",
+              "pins:write",
+              "bookmarks:read",
+              "bookmarks:write",
+              "reactions:read",
+              "reactions:write",
+              "team:read",
+            ],
+            user_scopes: ["users:read", "users.profile:read"],
+            bot_name: "my-bot",
           },
         ],
+        strict_scopes: false,
       },
     },
   },

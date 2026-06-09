@@ -57,10 +57,10 @@ emulate
 emulate --service vercel,github,foundry
 
 # Custom port
-emulate --port 3000
+npx emulate --port 3000
 
 # Use a seed config file
-emulate --seed config.yaml
+npx emulate --seed config.yaml
 
 # Launch the interactive starter-config builder
 emulate init
@@ -72,7 +72,7 @@ emulate init --service foundry
 emulate init --service foundry --stdout
 
 # List available services
-emulate list
+npx emulate list
 ```
 
 ### Options
@@ -82,6 +82,8 @@ emulate list
 | `-p, --port` | `4000` | Base port (auto-increments per service) |
 | `-s, --service` | default startup set | Comma-separated services to enable |
 | `--seed` | auto-detect | Path to seed config (YAML or JSON) |
+| `--base-url` | none | Override advertised base URL (supports `{service}` template) |
+| `--portless` | off | Serve over HTTPS via portless (auto-registers aliases) |
 
 The port can also be set via `EMULATE_PORT` or `PORT` environment variables.
 
@@ -93,6 +95,45 @@ The port can also be set via `EMULATE_PORT` or `PORT` environment variables.
 - `emulate init --out ./configs/local.yaml --force` writes to a custom path and overwrites the file when needed.
 
 When Foundry starts, the banner also prints a `Quick start` section with a ready-to-open authorize URL and curl examples for `/multipass/api/me` and `/api/v2/admin/users/getCurrent`.
+
+## HTTPS with portless
+
+[portless](https://github.com/vercel-labs/portless) gives emulators trusted HTTPS URLs with auto-generated certs and no browser warnings.
+
+```bash
+# Start the portless proxy (first time only)
+portless proxy start
+
+# Start emulate with portless integration
+emulate start --portless
+```
+
+Each service registers as a portless alias and gets a named HTTPS URL:
+
+```
+github  https://github.emulate.localhost
+google  https://google.emulate.localhost
+slack   https://slack.emulate.localhost
+```
+
+If portless is not installed, emulate will prompt to install it (`npm i -g portless`).
+
+The `--portless` flag overwrites any existing portless aliases matching `*.emulate`. Aliases are removed automatically when emulate shuts down.
+
+For a custom base URL without portless (any reverse proxy), use `--base-url` or the `EMULATE_BASE_URL` env var:
+
+```bash
+emulate start --base-url "https://{service}.myproxy.test"
+```
+
+The `PORTLESS_URL` env var is automatically set by the `portless` CLI wrapper when running a command through it (e.g. `portless github.emulate emulate start`), typically to a value like `https://{service}.emulate.localhost`. It supports `{service}` interpolation, just like `--base-url` and `EMULATE_BASE_URL`. When no explicit `baseUrl` is provided, it is used as a fallback.
+
+Per-service overrides are also supported in the seed config (these take highest priority over all other base URL sources):
+
+```yaml
+github:
+  baseUrl: https://github.emulate.localhost
+```
 
 ## Programmatic API
 
@@ -147,6 +188,7 @@ afterAll(() => Promise.all([github.close(), vercel.close()]))
 | `service` | *(required)* | Registered service name such as `'vercel'`, `'github'`, `'google'`, `'slack'`, `'apple'`, `'microsoft'`, `'aws'`, or `'foundry'` |
 | `port` | `4000` | Port for the HTTP server |
 | `seed` | none | Inline seed data (same shape as YAML config) |
+| `baseUrl` | none | Override advertised base URL. Per-service `baseUrl` in seed config takes highest priority, then this option, then `EMULATE_BASE_URL` env var (supports `{service}`), then `PORTLESS_URL` (supports `{service}`, automatically set by the `portless` CLI wrapper), then `http://localhost:<port>`. |
 
 ### Instance methods
 
@@ -197,6 +239,9 @@ google:
   users:
     - email: testuser@example.com
       name: Test User
+    - email: admin@acme.com
+      name: Admin
+      hd: acme.com
   oauth_clients:
     - client_id: my-client-id.apps.googleusercontent.com
       client_secret: GOCSPX-secret
@@ -245,6 +290,11 @@ slack:
     - name: developer
       real_name: Developer
       email: dev@example.com
+      profile:
+        title: Local Developer
+        status_text: Testing locally
+        status_emoji: ":computer:"
+      presence: active
   channels:
     - name: general
       topic: General discussion
@@ -255,9 +305,76 @@ slack:
   oauth_apps:
     - client_id: "12345.67890"
       client_secret: example_client_secret
+      app_id: A000000001
       name: My Slack App
       redirect_uris:
         - http://localhost:3000/api/auth/callback/slack
+      scopes:
+        - chat:write
+        - channels:read
+        - channels:history
+        - channels:join
+        - channels:manage
+        - channels:write
+        - groups:read
+        - groups:history
+        - groups:write
+        - im:read
+        - im:history
+        - im:write
+        - mpim:read
+        - mpim:history
+        - mpim:write
+        - users:read
+        - users:read.email
+        - users.profile:read
+        - users.profile:write
+        - users:write
+        - files:read
+        - files:write
+        - pins:read
+        - pins:write
+        - bookmarks:read
+        - bookmarks:write
+        - reactions:read
+        - reactions:write
+        - team:read
+      user_scopes: [users:read, users.profile:read]
+      bot_name: my-bot
+  tokens:
+    - token: xoxb-local-test
+      user: developer
+      scopes:
+        - chat:write
+        - channels:read
+        - channels:history
+        - channels:join
+        - channels:manage
+        - channels:write
+        - groups:read
+        - groups:history
+        - groups:write
+        - im:read
+        - im:history
+        - im:write
+        - mpim:read
+        - mpim:history
+        - mpim:write
+        - users:read
+        - users:read.email
+        - users.profile:read
+        - users.profile:write
+        - users:write
+        - files:read
+        - files:write
+        - pins:read
+        - pins:write
+        - bookmarks:read
+        - bookmarks:write
+        - reactions:read
+        - reactions:write
+        - team:read
+  strict_scopes: false
 
 apple:
   users:
@@ -669,38 +786,88 @@ OAuth 2.0, OpenID Connect, and mutable Google Workspace-style surfaces for local
 
 ## Slack API
 
-Fully stateful Slack Web API emulation with channels, messages, threads, reactions, OAuth v2, and incoming webhooks.
+Fully stateful Slack Web API emulation with channels, messages, threads, reactions, user profiles, presence, modern file uploads, pins, bookmarks, views, OAuth v2, and incoming webhooks. Chat writes preserve common rich message fields such as `blocks`, `attachments`, `metadata`, formatting flags, unfurl flags, and client message ids. Conversation writes update archive state, names, topics, purposes, membership, DMs, MPIMs, and read cursors. User writes update profile fields, status, custom fields, and deterministic active or away presence. File writes support the current external upload flow with local upload URLs, file share messages, reads, lists, downloads, and deletes. Pin and bookmark writes support channel message pins and link bookmarks. View writes support App Home publishing and modal stacks. Seeded OAuth apps and OAuth installs create bot users and installation records. OAuth exchanges and explicit token seeds create scoped token records. Supported write state changes dispatch Slack `event_callback` payloads to configured webhook URLs.
 
 ### Auth & Chat
 - `POST /api/auth.test` - test authentication
-- `POST /api/chat.postMessage` - post message (supports threads via `thread_ts`)
-- `POST /api/chat.update` - update message
+- `POST /api/chat.postMessage` - post message with text or rich payload fields (supports threads via `thread_ts` and DM user IDs)
+- `POST /api/chat.postEphemeral` - post ephemeral message outside channel history
+- `POST /api/chat.update` - update message text and rich payload fields
 - `POST /api/chat.delete` - delete message
+- `GET /api/chat.getPermalink` / `POST /api/chat.getPermalink` - get message permalink
+- `POST /api/chat.scheduleMessage` - schedule pending message
+- `POST /api/chat.deleteScheduledMessage` - delete pending scheduled message
+- `POST /api/chat.scheduledMessages.list` - list pending scheduled messages
 - `POST /api/chat.meMessage` - /me message
 
 ### Conversations
-- `POST /api/conversations.list` - list channels (cursor pagination)
+- `POST /api/conversations.list` - list conversations (cursor pagination, `types`, `exclude_archived`)
 - `POST /api/conversations.info` - get channel info
 - `POST /api/conversations.create` - create channel
-- `POST /api/conversations.history` - channel history
-- `POST /api/conversations.replies` - thread replies
+- `POST /api/conversations.archive` / `conversations.unarchive` - archive/restore channel
+- `POST /api/conversations.rename` - rename channel
+- `POST /api/conversations.setTopic` / `conversations.setPurpose` - update topic/purpose
+- `POST /api/conversations.history` - channel history with rich message fields
+- `POST /api/conversations.replies` - thread replies with rich message fields
 - `POST /api/conversations.join` / `conversations.leave` - join/leave
+- `POST /api/conversations.invite` / `conversations.kick` - manage membership
+- `POST /api/conversations.open` / `conversations.close` - open/close DMs and MPIMs
+- `POST /api/conversations.mark` - mark read cursor
 - `POST /api/conversations.members` - list members
 
 ### Users & Reactions
 - `POST /api/users.list` - list users (cursor pagination)
 - `POST /api/users.info` - get user info
 - `POST /api/users.lookupByEmail` - lookup by email
+- `GET /api/users.profile.get` / `POST /api/users.profile.get` - get user profile fields
+- `POST /api/users.profile.set` - update profile fields, status, and custom fields
+- `GET /api/users.getPresence` / `POST /api/users.getPresence` - get active or away presence
+- `POST /api/users.setPresence` - set the authed user to away or automatic presence
 - `POST /api/reactions.add` / `reactions.remove` / `reactions.get` - manage reactions
+
+### Files
+- `POST /api/files.getUploadURLExternal` - create a local external upload session
+- `POST /upload/v1/:fileId` - receive raw uploaded file bytes
+- `POST /api/files.completeUploadExternal` - complete uploads and optionally share file messages
+- `GET /api/files.info` / `POST /api/files.info` - get file metadata
+- `GET /api/files.list` / `POST /api/files.list` - list completed files
+- `GET /files-pri/:fileId/:filename` - download file bytes with a bearer token that can access the file
+- `POST /api/files.delete` - delete a completed file
+
+### Pins & Bookmarks
+- `POST /api/pins.add` - pin a message to a channel
+- `GET /api/pins.list` / `POST /api/pins.list` - list pinned message items for a channel
+- `POST /api/pins.remove` - remove a message pin from a channel
+- `POST /api/bookmarks.add` - add a link bookmark to a channel
+- `POST /api/bookmarks.edit` - update a link bookmark
+- `POST /api/bookmarks.list` - list channel bookmarks
+- `POST /api/bookmarks.remove` - remove a bookmark from a channel
+
+### Views
+- `POST /api/views.publish` - publish or update an App Home view for a user
+- `POST /api/views.open` - open a modal view
+- `POST /api/views.update` - update a view by `view_id` or `external_id`
+- `POST /api/views.push` - push a modal view onto the current modal stack
+- `POST /api/views.generateTriggerId` - local helper for tests that need a modal trigger id
+
+Modal opens and pushes require values from `/api/views.generateTriggerId`. Pass the returned value as `trigger_id` or `interactivity_pointer`; generate push values with an existing `view_id` and use them within 3 seconds.
 
 ### Team, Bots & Webhooks
 - `POST /api/team.info` - workspace info
 - `POST /api/bots.info` - bot info
-- `POST /services/:teamId/:botId/:webhookId` - incoming webhook
+- `POST /services/:teamId/:botId/:webhookId` - incoming webhook with text or rich payload fields
 
 ### OAuth
 - `GET /oauth/v2/authorize` - authorization (shows user picker)
+- `POST /oauth/v2/authorize/callback` - local user picker callback that creates the auth code
 - `POST /api/oauth.v2.access` - token exchange
+
+### Inspector
+- `GET /` - tabbed local inspector for conversations, messages, files, views, auth records, incoming webhooks, event subscriptions, and event deliveries
+
+Slack scope checks are relaxed by default so local tests can use simple bearer tokens. Set `slack.strict_scopes: true` in seed config to make supported Web API methods return Slack-style `missing_scope` errors with `needed` and `provided` fields. Strict mode checks `chat:write`, `channels:read`, `channels:history`, `channels:join`, `channels:manage`, `channels:write`, `groups:read`, `groups:history`, `groups:write`, `im:read`, `im:history`, `im:write`, `mpim:read`, `mpim:history`, `mpim:write`, `users:read`, `users:read.email`, `users.profile:read`, `users.profile:write`, `users:write`, `files:read`, `files:write`, `pins:read`, `pins:write`, `bookmarks:read`, `bookmarks:write`, `reactions:read`, `reactions:write`, and `team:read`. Slack lists no method-specific scopes for `views.publish`, `views.open`, `views.update`, or `views.push`, so the emulator requires auth but does not add strict-scope checks for those methods.
+
+Current Slack limits: Slack Connect, Enterprise Grid admin APIs, Audit Logs API, SCIM, Legal Holds, Socket Mode, slash command and interaction simulation, user groups, reminders, stars, calls, canvases, lists, functions, workflows, chat streaming, legacy `files.upload`, exact rate limiting, and paid-plan behavior are not implemented.
 
 ## Apple Sign In
 
@@ -772,18 +939,22 @@ Behavior notes:
 
 ## AWS
 
-S3, SQS, IAM, and STS emulation with REST-style S3 paths and query-style SQS/IAM/STS endpoints. All responses use AWS-compatible XML.
+S3, SQS, IAM, and STS emulation with AWS SDK-compatible S3 paths and query-style SQS/IAM/STS endpoints. All responses use AWS-compatible XML.
 
 ### S3
-- `GET /s3/` - list all buckets
-- `PUT /s3/:bucket` - create bucket
-- `DELETE /s3/:bucket` - delete bucket
-- `HEAD /s3/:bucket` - check existence
-- `GET /s3/:bucket` - list objects (prefix, delimiter, max-keys)
-- `PUT /s3/:bucket/:key` - put object (supports copy via `x-amz-copy-source`)
-- `GET /s3/:bucket/:key` - get object
-- `HEAD /s3/:bucket/:key` - head object
-- `DELETE /s3/:bucket/:key` - delete object
+
+S3 routes use root paths matching the real AWS S3 wire format, so the official AWS SDK works out of the box with `forcePathStyle: true`. Legacy `/s3/` prefixed paths are also supported for backward compatibility.
+
+- `GET /` - list all buckets
+- `PUT /:bucket` - create bucket
+- `DELETE /:bucket` - delete bucket
+- `HEAD /:bucket` - check existence
+- `GET /:bucket` - list objects (prefix, delimiter, max-keys, continuation-token, start-after)
+- `POST /:bucket` - presigned POST upload (browser-style multipart form with policy validation)
+- `PUT /:bucket/:key` - put object (supports copy via `x-amz-copy-source`)
+- `GET /:bucket/:key` - get object
+- `HEAD /:bucket/:key` - head object
+- `DELETE /:bucket/:key` - delete object
 
 ### SQS
 All operations via `POST /sqs/` with `Action` parameter:
@@ -939,7 +1110,7 @@ apps/
   web/              # Upstream Next.js docs / content source (not deployed)
 ```
 
-The core provides a generic `Store` with typed `Collection<T>` instances supporting CRUD, indexing, filtering, and pagination. Each service plugin registers its routes on the shared Hono app and uses the store for state.
+The core provides a generic `Store` with typed `Collection<T>` instances supporting CRUD, indexing, filtering, and pagination. Each service plugin registers its routes with the shared internal app and uses the store for state.
 
 ## Docs Site
 
@@ -1035,7 +1206,7 @@ Tokens are configured in the seed config and map to users. Pass them as `Authori
 
 **Google**: Standard OAuth 2.0 authorization code flow. Configure clients in the seed config.
 
-**Slack**: All Web API endpoints require `Authorization: Bearer <token>`. OAuth v2 flow with user picker UI.
+**Slack**: All Web API endpoints require `Authorization: Bearer <token>`. Seeded OAuth apps create local installation records, and OAuth v2 flow with user picker UI creates scoped bot tokens. Optional strict scope mode returns `missing_scope` when a token lacks a required method scope.
 
 **Apple**: OIDC authorization code flow with RS256 ID tokens. On first auth per user/client pair, a `user` JSON blob is included.
 

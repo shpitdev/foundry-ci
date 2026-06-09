@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { describe, expect, it, beforeEach } from "vitest";
-import { Hono } from "hono";
+import { Hono } from "@emulators/core";
 import { Store, WebhookDispatcher, authMiddleware, type TokenMap } from "@emulators/core";
 import { foundryPlugin, seedFromConfig, getFoundryStore } from "../index.js";
 

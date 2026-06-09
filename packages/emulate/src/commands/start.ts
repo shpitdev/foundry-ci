@@ -5,6 +5,8 @@ import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { parse as parseYaml } from "yaml";
 import pc from "picocolors";
+import { ensurePortless, registerAliases, removeAliases, portlessBaseUrl, type PortlessAlias } from "../portless.js";
+import { resolveBaseUrl } from "../base-url.js";
 
 declare const PKG_VERSION: string;
 const pkg = { version: PKG_VERSION };
@@ -13,6 +15,8 @@ export interface StartOptions {
   port: number;
   service?: string;
   seed?: string;
+  baseUrl?: string;
+  portless?: boolean;
 }
 
 interface SeedConfig {
@@ -118,6 +122,11 @@ async function startHttpServer(
 export async function startCommand(options: StartOptions): Promise<void> {
   const { port: basePort } = options;
 
+  if (options.portless && options.baseUrl) {
+    console.error("--portless and --base-url are mutually exclusive.");
+    process.exit(1);
+  }
+
   const loaded = loadSeedConfig(options.seed);
   const seedConfig = loaded?.config ?? null;
   const configSource = loaded?.source ?? null;
@@ -152,20 +161,56 @@ export async function startCommand(options: StartOptions): Promise<void> {
     };
   }
 
+  if (options.portless) {
+    await ensurePortless();
+  }
+
+  interface PreparedService {
+    svc: ServiceName;
+    entry: (typeof SERVICE_REGISTRY)[ServiceName];
+    loadedSvc: Awaited<ReturnType<(typeof SERVICE_REGISTRY)[ServiceName]["load"]>>;
+    svcSeedConfig: Record<string, unknown> | undefined;
+    port: number;
+    baseUrl: string;
+    usesCustomPort: boolean;
+  }
+
+  const portlessAliases: PortlessAlias[] = [];
+  const prepared: PreparedService[] = [];
+
+  for (let i = 0; i < services.length; i++) {
+    const svc = services[i];
+    const entry = SERVICE_REGISTRY[svc];
+    const loadedSvc = await entry.load();
+
+    const svcSeedConfig = seedConfig?.[svc] as Record<string, unknown> | undefined;
+    const usesCustomPort = typeof svcSeedConfig?.port === "number";
+    const port = (svcSeedConfig?.port as number | undefined) ?? basePort + i;
+
+    if (options.portless) {
+      portlessAliases.push({ name: `${svc}.emulate`, port });
+    }
+
+    const seedBaseUrl =
+      typeof svcSeedConfig?.baseUrl === "string" && svcSeedConfig.baseUrl.length > 0
+        ? svcSeedConfig.baseUrl
+        : undefined;
+    const effectiveBaseUrl = options.portless ? portlessBaseUrl(svc) : options.baseUrl;
+    const baseUrl = resolveBaseUrl({ service: svc, port, baseUrl: effectiveBaseUrl, seedBaseUrl });
+
+    prepared.push({ svc, entry, loadedSvc, svcSeedConfig, port, baseUrl, usesCustomPort });
+  }
+
+  if (portlessAliases.length > 0) {
+    registerAliases(portlessAliases);
+  }
+
   const serviceUrls: Array<{ name: string; url: string }> = [];
   const stores: Store[] = [];
   const httpServers: HttpServer[] = [];
 
   try {
-    for (let i = 0; i < services.length; i++) {
-      const svc = services[i];
-      const entry = SERVICE_REGISTRY[svc];
-      const loadedSvc = await entry.load();
-
-      const svcSeedConfig = seedConfig?.[svc] as Record<string, unknown> | undefined;
-      const usesCustomPort = typeof svcSeedConfig?.port === "number";
-      const port = (svcSeedConfig?.port as number | undefined) ?? basePort + i;
-      const baseUrl = `http://localhost:${port}`;
+    for (const { svc, entry, loadedSvc, svcSeedConfig, port, baseUrl, usesCustomPort } of prepared) {
       serviceUrls.push({ name: svc, url: baseUrl });
 
       // eslint-disable-next-line prefer-const -- reassigned after closure captures it
@@ -176,20 +221,29 @@ export async function startCommand(options: StartOptions): Promise<void> {
 
       const fallbackUser = entry.defaultFallback(svcSeedConfig);
 
-      const { app, store } = createServer(loadedSvc.plugin, { port, baseUrl, tokens, appKeyResolver, fallbackUser });
+      const { app, store, webhooks } = createServer(loadedSvc.plugin, {
+        port,
+        baseUrl,
+        tokens,
+        appKeyResolver,
+        fallbackUser,
+      });
       cachedResolver = loadedSvc.createAppKeyResolver?.(store);
       stores.push(store);
 
       loadedSvc.plugin.seed?.(store, baseUrl);
 
       if (svcSeedConfig && loadedSvc.seedFromConfig) {
-        loadedSvc.seedFromConfig(store, baseUrl, svcSeedConfig);
+        loadedSvc.seedFromConfig(store, baseUrl, svcSeedConfig, webhooks);
       }
 
       const httpServer = await startHttpServer(app.fetch, port, svc, usesCustomPort);
       httpServers.push(httpServer);
     }
   } catch (error) {
+    if (portlessAliases.length > 0) {
+      removeAliases(portlessAliases);
+    }
     for (const srv of httpServers) {
       srv.close();
     }
@@ -205,6 +259,9 @@ export async function startCommand(options: StartOptions): Promise<void> {
 
   const shutdown = () => {
     console.log(`\n${pc.dim("Shutting down...")}`);
+    if (portlessAliases.length > 0) {
+      removeAliases(portlessAliases);
+    }
     for (const store of stores) {
       store.reset();
     }
@@ -246,7 +303,7 @@ function printBanner(
   if (configSource) {
     lines.push(`  ${pc.dim("Config:")} ${configSource}`);
   } else {
-    lines.push(`  ${pc.dim("Config:")} defaults ${pc.dim("(run")} emulate init ${pc.dim("to customize)")}`);
+    lines.push(`  ${pc.dim("Config:")} defaults ${pc.dim("(run")} npx emulate init ${pc.dim("to customize)")}`);
   }
 
   const quickStartLines = buildQuickStartLines(services, tokens, seedConfig);
