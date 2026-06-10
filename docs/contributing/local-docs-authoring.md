@@ -1,59 +1,41 @@
 # Local Docs Authoring Workflow
 
-## Adding a local docs page
+## Adding a fork-owned docs page
 
-Local docs pages live in `apps/web-svelte/src/content/` as Markdown files. They are owned entirely by this repo, not derived from upstream.
+Fork-owned docs (everything Foundry) live in `apps/web/app/docs/foundry/` as MDX pages. They are owned entirely by this repo, not derived from upstream.
 
 ### Steps
 
-1. Create the Markdown file at the appropriate path under `src/content/`. The file path determines the URL:
-   - `src/content/foundry/auth/oauth.md` serves at `/foundry/auth/oauth`
-   - `src/content/foundry/getting-started.md` serves at `/foundry/getting-started`
+1. Create `apps/web/app/docs/foundry/<path>/page.mdx`. The directory path determines the URL:
+   - `app/docs/foundry/auth/oauth/page.mdx` serves at `/docs/foundry/auth/oauth`
+   - `app/docs/foundry/getting-started/page.mdx` serves at `/docs/foundry/getting-started`
 
-2. Start the file with an H1 heading. The local docs registry derives the page title from the first H1:
-   ```markdown
-   # OAuth 2.0
+2. Start the file with an H1 heading; rendering (typography, shiki code blocks, GFM tables) comes from `apps/web/mdx-components.tsx` automatically.
+
+3. Add a sibling `layout.tsx` exporting page metadata:
+
+   ```tsx
+   import { pageMetadata } from "@/lib/page-metadata";
+
+   export const metadata = pageMetadata("foundry/<path>");
+
+   export default function Layout({ children }: { children: React.ReactNode }) {
+     return children;
+   }
    ```
 
-3. No registry edit is needed. `src/lib/docs-registry.ts` auto-discovers local Markdown files under `src/content/`.
+4. Register the page in three lists (one entry each):
+   - `apps/web/lib/docs-sections.ts` — sidebar (desktop + mobile)
+   - `apps/web/lib/docs-navigation.ts` — search index
+   - `apps/web/lib/page-titles.ts` — page/OG titles (keyed by the slug used in `pageMetadata`)
 
-4. Add the page to the nav structure in `src/lib/nav.ts` under the appropriate section.
+5. If the page replaces an old URL, add a redirect in `apps/web/next.config.mjs`.
 
-5. Run the build to verify:
-   ```bash
-   pnpm --filter web-svelte build
-   ```
+### Verifying
 
-The prerender entry generator picks up new registry entries automatically. No per-page `+page.server.ts` is needed.
-
-## Local content conventions
-
-- Use standard Markdown (not MDX). No JSX components or import statements.
-- Fenced code blocks are highlighted via Shiki at build time.
-- Inline code uses backticks as usual.
-- Internal links use root-relative hrefs (`/foundry/auth/oauth`).
-- Keep prose concise. Reference the upstream emulate docs for general concepts.
-
-## Foundry docs hierarchy
-
-The local Foundry docs use a nested hierarchy:
-
-```
-/foundry                         Overview and quick start
-/foundry/getting-started         Setup and first run
-/foundry/auth/oauth              OAuth 2.0 flow
-/foundry/auth/client-credentials Client credentials grant
-/foundry/auth/refresh-tokens     Token refresh
-/foundry/auth/scopes             Scope model
-/foundry/auth/current-user       Current user endpoint
-/foundry/admin/enrollments       Enrollment management
-/foundry/admin/users             User management
-/foundry/connectivity/...        Connections and secrets
-/foundry/ontologies/...          Object reads, queries, actions
-/foundry/compute-modules/...     Runtime, jobs, contour
-/foundry/reference/...           Seed config, endpoints, scopes
+```bash
+pnpm --filter web dev:vinext   # check rendering at http://localhost:3001
+pnpm --filter web build:vinext
 ```
 
-## Metadata
-
-Page metadata (title, description, OG tags) is resolved centrally. Local pages supply their title through the first H1, while descriptions and FoundryCI branding come from `src/lib/page-metadata.ts`.
+Use install commands with the fork's npm package (`npx @nyrra/emulate`), not upstream's `npx emulate`.

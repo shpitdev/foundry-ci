@@ -1,54 +1,33 @@
-# Upstream Docs Sync Workflow
+# Upstream Sync Workflow
 
 ## When to sync
 
-Run a docs sync whenever:
-
-- You pull new commits from `vercel-labs/emulate` into `apps/web`
-- A page is added, renamed, or removed in the upstream docs
-- Upstream nav grouping or metadata constants change
+Pull from `vercel-labs/emulate` whenever upstream ships service emulator changes, docs content updates, or CLI features worth inheriting.
 
 ## How to sync
 
 ```bash
-pnpm docs:sync
+git fetch upstream
+git merge upstream/main
 ```
 
-This runs the sync script in `packages/docs-upstream` which:
-
-1. Reads every `apps/web/app/**/page.mdx` file
-2. Reads shared constants from `apps/web/lib/` (docs-pages, docs-nav-sections, site-metadata, service-labels)
-3. Produces committed artifacts in `packages/docs-upstream/generated/`:
-   - `manifest.json`: ordered page registry with slugs, titles, and hrefs
-   - `content/`: raw MDX copies keyed by slug
-   - `nav.json`: nav section groupings and label overrides
-   - `metadata.ts`: re-exported upstream site metadata constants
-
-4. Writes the artifacts to disk deterministically (sorted keys, stable output)
-
-## Checking for staleness
-
-```bash
-pnpm docs:sync:check
-```
-
-Runs the sync in dry-run mode and exits non-zero if the committed artifacts would change. CI runs this check on every PR.
-
-## After syncing
-
-If the sync adds a new upstream page:
-
-1. Decide whether to surface it in `apps/web-svelte` nav or mark it as intentionally unsurfaced
-2. If surfacing: add an entry to the docs registry's upstream manifest
-3. If deferring: add the href to the unsurfaced allowlist in the docs registry
-
-The build-time contract validation in `apps/web-svelte` will abort if an upstream page exists without a conscious decision.
+There is no generation step: `apps/web` tracks upstream's `apps/web` structure directly, and the emulator packages merge as normal code.
 
 ## Resolving conflicts
 
-When merging upstream changes:
+Package- and CLI-level rules (fork identity, `@nyrra` scope, Foundry/Clerk packages, workflows) are unchanged — see the conflict rules in the repo memory of past syncs and `docs/architecture/docs-platform.md` for the `apps/web` rules. In short:
 
-1. Accept upstream's changes to `apps/web/` files (they own the content)
-2. Re-run `pnpm docs:sync` to regenerate the ingestion artifacts
-3. Check that `apps/web-svelte` builds cleanly
-4. If a page was renamed or removed upstream, update the docs registry and nav accordingly
+1. **Emulator packages** (`packages/@emulators/*` except `foundry`/`clerk`) and `examples/` usually auto-merge; upstream owns them.
+2. **`packages/emulate`** keeps the fork's `@nyrra/emulate` identity and Foundry-aware CLI; graft upstream features on top.
+3. **`apps/web`** keeps the fork's vinext setup (`vite.config.ts`, vinext scripts/deps), branding (`lib/site.ts`), and Foundry docs (`app/docs/foundry/**`); take upstream's service `page.mdx` content edits. If upstream adds a service, add one entry each to `lib/docs-sections.ts`, `lib/docs-navigation.ts`, and `lib/page-titles.ts`.
+4. **Fork-owned, never take upstream's:** `.github/workflows/*`, root `package.json`, `AGENTS.md`, `CLAUDE.md`, `CHANGELOG.md`, `README.md`.
+
+## After syncing
+
+```bash
+pnpm install
+pnpm format:check && pnpm type-check && pnpm lint && pnpm test && pnpm build
+pnpm --filter web build:vinext
+```
+
+These are the same steps CI runs.

@@ -1106,95 +1106,47 @@ packages/
     resend/         # Resend email API
     stripe/         # Stripe billing and payments API
 apps/
-  web-svelte/       # Deployable docs site (SvelteKit + Cloudflare adapter)
-  web/              # Upstream Next.js docs / content source (not deployed)
+  web/              # Docs + landing site (Next.js App Router, built and served with vinext)
 ```
 
 The core provides a generic `Store` with typed `Collection<T>` instances supporting CRUD, indexing, filtering, and pagination. Each service plugin registers its routes with the shared internal app and uses the store for state.
 
 ## Docs Site
 
-The deployable docs app is `apps/web-svelte`, deployed to Cloudflare Workers. Build it with:
+The docs + landing site is `apps/web`, a Next.js App Router app built and served with [vinext](https://github.com/cloudflare/vinext) (the Next.js API surface on Vite). It serves the landing page at `/` and every docs page under `/docs/*`.
 
 ```bash
-pnpm --filter web-svelte build
+pnpm --filter web dev:vinext      # dev server with HMR on port 3001
+pnpm --filter web build:vinext    # production build (outputs apps/web/dist/)
+pnpm --filter web start:vinext    # serve the production build
 ```
 
-The build emits a Cloudflare adapter output under `apps/web-svelte/.svelte-kit/cloudflare/`, containing prerendered HTML for every docs route, the worker entry, and static assets.
+The app also still builds with plain Next.js (`pnpm --filter web build`); CI exercises both paths.
 
 ### Content sources
 
-The docs site serves two kinds of content through a unified registry at `apps/web-svelte/src/lib/docs-registry.ts`:
-
 | Kind | Source | Examples |
 |------|--------|----------|
-| **upstream** | `packages/docs-upstream/generated/content/` | `/vercel`, `/github`, `/configuration` |
-| **local** | `apps/web-svelte/src/content/` | `/foundry/auth/oauth`, `/foundry/reference/endpoints` |
+| **upstream** | `apps/web/app/docs/<service>/page.mdx` (inherited from upstream) | `/docs/vercel`, `/docs/github`, `/docs/configuration` |
+| **local (fork-owned)** | `apps/web/app/docs/foundry/**/page.mdx` | `/docs/foundry/auth/oauth`, `/docs/foundry/reference/endpoints` |
 
-`apps/web` is a read-only upstream mirror. It is never deployed. Its MDX content is consumed through `packages/docs-upstream`, which provides the owned ingestion boundary between the upstream mirror and the deployed app.
+### Adding a page
+
+Create `apps/web/app/docs/<path>/page.mdx` plus a `layout.tsx` exporting `pageMetadata("<path>")`, then add one entry each to:
+
+- `apps/web/lib/docs-sections.ts` — sidebar (desktop + mobile)
+- `apps/web/lib/docs-navigation.ts` — search index
+- `apps/web/lib/page-titles.ts` — page/OG titles
+
+If a URL moves, add a redirect in `apps/web/next.config.mjs`.
+
+### Branding
+
+All brand strings (site name, owner, URLs, repo, npm package) live in `apps/web/lib/site.ts`; the header/footer, metadata, OG images, chat panel, and landing copy all derive from it. A future rename is that file plus the logo assets in `apps/web/public/`.
 
 ### Upstream sync
 
-When upstream content changes, regenerate the ingestion artifacts:
-
-```bash
-pnpm docs:sync          # regenerate packages/docs-upstream/generated/
-pnpm docs:sync:check    # dry-run; exits 1 if committed artifacts are stale
-```
-
-Then verify the Svelte build:
-
-```bash
-pnpm --filter web-svelte type-check
-pnpm --filter web-svelte build
-pnpm --filter web-svelte lint
-```
-
-### Local Foundry docs
-
-Local Foundry docs live under `apps/web-svelte/src/content/foundry/` as plain Markdown files. The file path determines the route: `src/content/foundry/auth/oauth.md` serves at `/foundry/auth/oauth`. Add new Foundry pages by creating a `.md` file at the desired path; the unified registry and the `[...slug]` route pick them up automatically.
-
-### Routing
-
-All non-root docs pages (both upstream and local) are served by a single rest-param route at `apps/web-svelte/src/routes/[...slug]/`. This supports nested paths like `/foundry/auth/oauth` alongside single-segment paths like `/vercel`. The route prerenders one HTML file per entry in the docs registry.
-
-### Rendering pipeline
-
-If the build fails on upstream MDX or a page renders incorrectly, the fix usually lives in:
-
-- `apps/web-svelte/src/lib/mdx-to-markdown.ts` for stripping MDX-only artifacts
-- `apps/web-svelte/src/lib/render-docs.server.ts` for the marked + Shiki renderer
-
-The visible shell branding and per-page metadata also live in a small set of shared files rather than in each route:
-
-- `apps/web-svelte/src/lib/components/Header.svelte` owns the header brand cluster (the F mark, the `FoundryCI` wordmark, the `by Nyrra` link, plus the search / GitHub / npm / theme-toggle nav). Edit the wordmark, mark, or brand-link copy here.
-- `apps/web-svelte/src/routes/+layout.svelte` owns the footer attribution row (`Built on emulate by Vercel Labs` and `A Nyrra project`). Edit footer copy or attribution links here.
-- `apps/web-svelte/src/lib/page-metadata.ts` is the single source for `<title>`, meta description, and Open Graph / Twitter metadata. The `ROOT_*` constants drive the homepage card; the `FOUNDRYCI_PAGE_METADATA` map opts FoundryCI-critical pages out of the generic `${displayTitle} | emulate` template.
-- `apps/web-svelte/static/og-default.svg` is the source-of-truth social card (embedded Geist + GeistPixelSquare TTFs); `apps/web-svelte/static/og-default.png` is the rasterized output the build serves. The SVG is the canonical, human-reviewable form.
-
-Per-route components are intentionally thin and should not carry brand strings of their own.
-
-Deploy wiring status: the repo now ships a real Cloudflare Worker config at `apps/web-svelte/wrangler.jsonc`, with `workers_dev` and `preview_urls` enabled plus a custom-domain route for `foundryci.com`. `pnpm --filter web-svelte deploy:dry-run` still rebuilds the Worker locally and validates the packaging path without touching a real account, while `pnpm --filter web-svelte deploy:preview` uploads a preview version to a Workers preview URL when `PREVIEW_ALIAS` is set and `pnpm --filter web-svelte deploy:production` performs the real production deploy. The same local `pnpm --filter web-svelte preview:worker` script still boots the built artifact under `wrangler dev --local` on `http://127.0.0.1:8788`, and `pnpm --filter web-svelte preview:worker:stop` remains the repo-local cleanup helper if that preview process tree gets stuck.
-
-To keep fresh installs deterministic for this build / preview / deploy path, the root `package.json` declares `pnpm.onlyBuiltDependencies = ["esbuild", "workerd"]` and `pnpm.ignoredBuiltDependencies` for the unrelated workspace build-script dependencies, so `pnpm install --frozen-lockfile` exits zero without prompting for build approval. GitHub Actions now has two layers:
-
-- `.github/workflows/ci.yml` runs `format:check`, `type-check`, `lint`, `test`, `build`, and `pnpm --filter web-svelte deploy:dry-run` on every pull request and push to `main`.
-- `.github/workflows/deploy-cloudflare.yml` is path-gated, concurrency-guarded, deploys PR previews with `wrangler versions upload --preview-alias`, deploys `main` to the `foundryci.com` custom domain with `wrangler deploy`, and comments the resulting preview or production deployment back onto the relevant pull request.
-
-Required GitHub secrets for the deploy workflow:
-
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-If the production docs domain changes from the value encoded in `apps/web-svelte/src/lib/page-metadata.ts`, update that file and `apps/web-svelte/wrangler.jsonc` together so the deployed hostname and metadata `BASE_URL` stay in lockstep.
-
-Upstream docs sync: after pulling upstream changes into `apps/web`, run `pnpm docs:sync` to regenerate the ingestion artifacts in `packages/docs-upstream/generated/`. Then verify with `pnpm --filter web-svelte type-check && pnpm --filter web-svelte build`. CI enforces `pnpm docs:sync:check`, which exits non-zero if committed artifacts are stale. See `docs/contributing/upstream-sync.md` for the full workflow.
-
-Adding a new upstream-backed route: when upstream adds a new page to both `apps/web/app/<slug>/page.mdx` and `apps/web/lib/docs-pages.ts`, run `pnpm docs:sync` to pick it up. The `PAGE_TITLES` map in `apps/web-svelte/src/lib/page-titles.ts` derives from the upstream catalog automatically. Add the href to `apps/web-svelte/src/lib/nav.ts` to make it visible in the sidebar. No new route files are needed; the `[...slug]` route prerenders all entries from the docs registry automatically.
-
-Adding a new local Foundry page: create a `.md` file under `apps/web-svelte/src/content/foundry/` at the desired path. The unified docs registry discovers it via Vite's eager glob, and the `[...slug]` route picks it up. Add it to the nav hierarchy in `nav.ts` if it should appear in the sidebar. See `docs/contributing/local-docs-authoring.md` for conventions.
-
-Search indexing: the search index in `apps/web-svelte/src/lib/search-index.ts` derives from the unified docs registry. Both upstream and local pages are indexed automatically. No separate search page list needs to be maintained.
+`apps/web` tracks upstream's `apps/web` structure directly; upstream service-doc changes arrive via `git merge upstream/main`. Rules and the expected conflict surface are documented in `docs/architecture/docs-platform.md`.
 
 ## Auth
 

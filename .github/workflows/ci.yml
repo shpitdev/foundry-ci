@@ -39,4 +39,4 @@ jobs:
 
       - run: pnpm build
 
-      - run: pnpm --filter web-svelte deploy:dry-run
+      - run: pnpm --filter web build:vinext

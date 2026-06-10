@@ -14,8 +14,6 @@
     "release:emulate:prepare": "pnpm --filter @nyrra/emulate build && node scripts/prepare-emulate-release-package.mjs",
     "release:emulate:pack": "pnpm run release:emulate:prepare && npm pack ./packages/emulate/.release",
     "release:emulate:publish:dry-run": "pnpm run release:emulate:prepare && npm publish ./packages/emulate/.release --dry-run --access public",
-    "docs:sync": "node --experimental-strip-types packages/docs-upstream/src/sync.ts",
-    "docs:sync:check": "node --experimental-strip-types packages/docs-upstream/src/sync.ts --check",
     "sync-versions": "node scripts/sync-versions.mjs"
   },
   "devDependencies": {

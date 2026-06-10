@@ -42,10 +42,10 @@ When a change affects how humans or agents use emulate (new/changed/removed comm
 1. `README.md`
 2. `skills/*/SKILL.md` (agent skills for each service)
 3. CLI `--help` output in `packages/emulate/src/index.ts`
-4. For Foundry changes: local docs in `apps/web-svelte/src/content/foundry/`
-5. For upstream service changes: `apps/web/` (mirror), then run `pnpm docs:sync`
+4. For Foundry changes: `apps/web/app/docs/foundry/**/page.mdx`
+5. For upstream service changes: `apps/web/app/docs/<service>/page.mdx` (these pages come from upstream; prefer taking upstream's edits via merge over hand-editing)
 
-Note: `apps/web` is a read-only upstream mirror. `apps/web-svelte` is the deployed docs app. See `docs/architecture/docs-platform.md` for the full ownership model.
+Note: `apps/web` is the deployed docs + landing site, built with vinext. When adding or moving a docs page, also update `apps/web/lib/docs-sections.ts` (sidebar), `lib/docs-navigation.ts` (search index), `lib/page-titles.ts` (titles/OG), and the redirects in `next.config.mjs`. Brand strings live only in `apps/web/lib/site.ts`. See `docs/architecture/docs-platform.md` for the full ownership model.
 
 <!-- opensrc:start -->
 
