@@ -5,33 +5,44 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Search } from "@/components/search";
 import { getStarCount } from "@/lib/github";
+import {
+  GITHUB_URL,
+  NPM_URL,
+  SITE_DESCRIPTION,
+  SITE_LOGO,
+  SITE_NAME,
+  SITE_OWNER,
+  SITE_OWNER_URL,
+  SITE_TAGLINE,
+  SITE_URL,
+  UPSTREAM_NAME,
+  UPSTREAM_URL,
+} from "@/lib/site";
 import "./globals.css";
 
-const ROOT_TITLE = "FoundryCI by Nyrra | Local Foundry Emulation";
-const ROOT_DESCRIPTION =
-  "Local Palantir Foundry emulation for CI and no-network sandboxes. FoundryCI is a Nyrra project built on emulate by Vercel Labs. Not mocks.";
+const ROOT_TITLE = `${SITE_NAME} by ${SITE_OWNER} | ${SITE_TAGLINE}`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://foundryci.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: ROOT_TITLE,
-    template: "%s | emulate",
+    template: `%s | ${SITE_NAME}`,
   },
-  description: ROOT_DESCRIPTION,
-  icons: { icon: "/nyrra-logo-5-colors.svg" },
+  description: SITE_DESCRIPTION,
+  icons: { icon: SITE_LOGO },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://foundryci.com",
-    siteName: "FoundryCI by Nyrra",
+    url: SITE_URL,
+    siteName: `${SITE_NAME} by ${SITE_OWNER}`,
     title: ROOT_TITLE,
-    description: ROOT_DESCRIPTION,
-    images: [{ url: "/og", width: 1200, height: 630, alt: "FoundryCI by Nyrra" }],
+    description: SITE_DESCRIPTION,
+    images: [{ url: "/og", width: 1200, height: 630, alt: `${SITE_NAME} by ${SITE_OWNER}` }],
   },
   twitter: {
     card: "summary_large_image",
     title: ROOT_TITLE,
-    description: ROOT_DESCRIPTION,
+    description: SITE_DESCRIPTION,
     images: ["/og"],
   },
 };
@@ -41,10 +52,10 @@ function Header({ stars }: { stars?: string }) {
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm dark:bg-neutral-950/90">
       <div className="flex h-14 items-center justify-between px-4 gap-6">
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2" aria-label="FoundryCI home">
+          <Link href="/" className="flex items-center gap-2" aria-label={`${SITE_NAME} home`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/nyrra-logo-5-colors.svg" alt="" aria-hidden="true" className="h-[18px] w-[18px]" />
-            <span className={`${GeistPixelSquare.className} text-lg leading-none`}>FoundryCI</span>
+            <img src={SITE_LOGO} alt="" aria-hidden="true" className="h-[18px] w-[18px]" />
+            <span className={`${GeistPixelSquare.className} text-lg leading-none`}>{SITE_NAME}</span>
           </Link>
           <span className="hidden text-neutral-300 sm:inline dark:text-neutral-700" aria-hidden="true">
             <svg height="14" strokeLinejoin="round" viewBox="0 0 16 16" width="14" style={{ color: "currentcolor" }}>
@@ -57,12 +68,12 @@ function Header({ stars }: { stars?: string }) {
             </svg>
           </span>
           <a
-            href="https://nyrra.ai"
+            href={SITE_OWNER_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="hidden text-xs text-neutral-500 transition-colors hover:text-neutral-900 sm:inline dark:text-neutral-400 dark:hover:text-neutral-100"
           >
-            by Nyrra
+            by {SITE_OWNER}
           </a>
         </div>
         <nav className="flex items-center gap-4">
@@ -74,7 +85,7 @@ function Header({ stars }: { stars?: string }) {
             Docs
           </Link>
           <a
-            href="https://github.com/nyrra-labs/nyrra-emulate"
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -85,7 +96,7 @@ function Header({ stars }: { stars?: string }) {
             {stars && <span>{stars}</span>}
           </a>
           <a
-            href="https://www.npmjs.com/package/@nyrra/emulate"
+            href={NPM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -106,24 +117,24 @@ function Footer() {
         <div>
           Built on{" "}
           <a
-            href="https://github.com/vercel-labs/emulate"
+            href={UPSTREAM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="underline transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
           >
-            emulate by Vercel Labs
+            {UPSTREAM_NAME}
           </a>
           .
         </div>
         <div>
           A{" "}
           <a
-            href="https://nyrra.ai"
+            href={SITE_OWNER_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="underline transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
           >
-            Nyrra
+            {SITE_OWNER}
           </a>{" "}
           project.
         </div>

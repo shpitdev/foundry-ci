@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PAGE_TITLES } from "./page-titles";
+import { SITE_NAME } from "./site";
 
 const DESCRIPTION =
   "Local drop-in replacement services for CI and no-network sandboxes. Fully stateful, production-fidelity API emulation.";
@@ -9,7 +10,7 @@ export function pageMetadata(slug: string): Metadata {
   if (!title) return {};
 
   const displayTitle = title.replace(/\n/g, " ");
-  const fullTitle = `${displayTitle} | emulate`;
+  const fullTitle = `${displayTitle} | ${SITE_NAME}`;
   const ogImageUrl = slug ? `/og/${slug}` : "/og";
 
   return {
@@ -18,7 +19,7 @@ export function pageMetadata(slug: string): Metadata {
     openGraph: {
       type: "website",
       locale: "en_US",
-      siteName: "emulate",
+      siteName: SITE_NAME,
       title: fullTitle,
       description: DESCRIPTION,
       images: [
@@ -26,7 +27,7 @@ export function pageMetadata(slug: string): Metadata {
           url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: `${displayTitle} - emulate`,
+          alt: `${displayTitle} - ${SITE_NAME}`,
         },
       ],
     },

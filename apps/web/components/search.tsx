@@ -161,7 +161,7 @@ export function Search() {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent showCloseButton={false} className="gap-0 p-0 sm:max-w-lg">
+        <DialogContent showCloseButton={false} aria-describedby={undefined} className="gap-0 p-0 sm:max-w-lg">
           <DialogTitle className="sr-only">Search documentation</DialogTitle>
           <div className="flex items-center gap-2 border-b border-border/50 px-3">
             <svg

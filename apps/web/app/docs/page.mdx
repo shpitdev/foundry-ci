@@ -5,7 +5,7 @@ Local drop-in replacement for Vercel, GitHub, Google, Slack, Apple, Microsoft, A
 ## Quick Start
 
 ```bash
-npx emulate
+npx @nyrra/emulate
 ```
 
 All services start with sensible defaults. No config file needed:
@@ -26,25 +26,25 @@ All services start with sensible defaults. No config file needed:
 
 ```bash
 # Start all services (zero-config)
-npx emulate
+npx @nyrra/emulate
 
 # Start specific services
-npx emulate --service vercel,github
+npx @nyrra/emulate --service vercel,github
 
 # Custom port
-npx emulate --port 3000
+npx @nyrra/emulate --port 3000
 
 # Use a seed config file
-npx emulate --seed config.yaml
+npx @nyrra/emulate --seed config.yaml
 
 # Generate a starter config
-npx emulate init
+npx @nyrra/emulate init
 
 # Generate config for a specific service
-npx emulate init --service github
+npx @nyrra/emulate init --service github
 
 # List available services
-npx emulate list
+npx @nyrra/emulate list
 ```
 
 ## Options
