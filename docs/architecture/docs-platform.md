@@ -27,6 +27,12 @@ Adding or moving a docs page means touching the page.mdx plus the three lib list
 - `pnpm --filter web build` (`next build`) — upstream's path, kept working for parity; CI runs both.
 - MDX: vinext auto-injects `@mdx-js/rollup` but does not wire the `mdx-components.tsx` convention, so `apps/web/vite.config.ts` registers the plugin explicitly with `providerImportSource: "@/mdx-components"` and `remark-gfm` (the Foundry docs use GFM tables). Without this, every MDX page renders unstyled and unhighlighted. `next.config.mjs` keeps upstream's bare `createMDX()`.
 
+## Dev tooling
+
+- **Lint**: `eslint` + `eslint-config-next`, run directly (`pnpm --filter web lint`). This is deliberate: `vinext lint` is a thin delegator that prefers exactly this setup (and recommends installing `eslint eslint-config-next` when no linter exists); oxlint/oxfmt are vinext's internal repo tooling, not a consumer expectation. Keeping upstream's lint stack also keeps merges clean. Build artifacts (`dist/`, `.vinext/`, `.next/`) are ignored in `eslint.config.mjs`.
+- **Types**: `pnpm --filter web type-check` (`tsc --noEmit`), wired into turbo/CI like every other workspace. If it fails on missing `app/<x>/layout.js` modules from `.next/types`, the stale validator predates a structure change — remove `.next/` and rerun.
+- **Compat**: `pnpm --filter web exec vinext check` reports the supported-API surface (100% at time of writing).
+
 ## Upstream sync rules for apps/web
 
 The fork point for this app is upstream's `apps/web` at v0.6.0 (post-#81 restructure). When merging future upstream changes:
