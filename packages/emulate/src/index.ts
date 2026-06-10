@@ -19,8 +19,11 @@ program
   .command("start", { isDefault: true })
   .description("Start the emulator server")
   .option("-p, --port <port>", "Base port", defaultPort)
-  .option("-s, --service <services>", "Comma-separated services to enable")
-  .option("--seed <file>", "Path to seed config file")
+  .option("-s, --service <services>", "Comma-separated services to enable (for example: github,foundry)")
+  .option(
+    "--seed <file>",
+    "Path to seed config file, including service-specific blocks such as foundry.compute_modules",
+  )
   .option("--base-url <url>", "Override advertised base URL (supports {service} template)")
   .option("--portless", "Serve over HTTPS via portless (auto-registers aliases)")
   .action(async (opts) => {
@@ -41,9 +44,24 @@ program
 program
   .command("init")
   .description("Generate a starter config file")
-  .option("-s, --service <service>", "Service to generate config for", "all")
-  .action((opts) => {
-    initCommand({ service: opts.service });
+  .option(
+    "-s, --service <services>",
+    "Comma-separated services to include, or 'all' for every bundled starter template",
+  )
+  .option("--out <file>", "Write the generated YAML to a custom file path")
+  .option("--stdout", "Print the generated YAML to stdout instead of writing a file")
+  .option("--force", "Overwrite an existing output file")
+  .option("--interactive", "Prompt for services, tokens, and output settings")
+  .option("--skip-tokens", "Omit the service-specific test tokens block from the generated config")
+  .action(async (opts) => {
+    await initCommand({
+      service: opts.service,
+      out: opts.out,
+      stdout: opts.stdout,
+      force: opts.force,
+      interactive: opts.interactive,
+      tokens: opts.skipTokens ? false : undefined,
+    });
   });
 
 program

@@ -1,14 +1,36 @@
-# emulate
+<p align="center">
+  <img src="https://www.nyrra.ai/nyrra-logo-5-colors.svg" alt="Nyrra" width="220" />
+</p>
 
-Local drop-in replacement services for CI and no-network sandboxes. Fully stateful, production-fidelity API emulation. Not mocks.
+# @nyrra/emulate
+
+Local drop-in replacement services for CI and no-network sandboxes, including Palantir Foundry. Fully stateful, production-fidelity API emulation. Not mocks.
+
+[![npm](https://img.shields.io/npm/v/%40nyrra%2Femulate/latest?logo=npm&label=npm)](https://www.npmjs.com/package/@nyrra/emulate)
+[![next](https://img.shields.io/npm/v/%40nyrra%2Femulate/next?logo=npm&label=next)](https://www.npmjs.com/package/@nyrra/emulate?activeTab=versions)
 
 ## Quick Start
 
 ```bash
-npx emulate
+npx @nyrra/emulate
 ```
 
-All services start with sensible defaults. No config file needed:
+If you are here for local Foundry emulation specifically, start with:
+
+```bash
+npx @nyrra/emulate --service foundry
+```
+
+If you install the package globally, the executable name is still `emulate`.
+
+Starter configs are bundled into the CLI. Run `emulate init` in a TTY for an interactive builder, or
+use flags such as `--service`, `--stdout`, and `--out` for non-interactive generation.
+
+When Foundry runs on its own, its base URL is `http://localhost:4000`. If you start multiple
+services in one process, ports are assigned in the order you pass to `--service`, starting from the
+base port (`4000` by default, or `--port <n>` if you override it).
+
+The default startup set starts with sensible defaults. No config file needed:
 
 - **Vercel** on `http://localhost:4000`
 - **GitHub** on `http://localhost:4001`
@@ -16,16 +38,23 @@ All services start with sensible defaults. No config file needed:
 - **Slack** on `http://localhost:4003`
 - **Apple** on `http://localhost:4004`
 - **Microsoft** on `http://localhost:4005`
-- **AWS** on `http://localhost:4006`
+- **Okta** on `http://localhost:4006`
+- **AWS** on `http://localhost:4007`
+- **Resend** on `http://localhost:4008`
+- **Stripe** on `http://localhost:4009`
+- **MongoDB Atlas** on `http://localhost:4010`
+- **Clerk** on `http://localhost:4011`
+
+Foundry is available when you enable it explicitly with `emulate --service foundry` or include `foundry:` in the seed config. The current Foundry slice covers OAuth 2.0, current-user lookup, and compute-module runtime plus contour job routes.
 
 ## CLI
 
 ```bash
-# Start all services (zero-config)
-npx emulate
+# Start the default startup set
+emulate
 
 # Start specific services
-npx emulate --service vercel,github
+emulate --service vercel,github,foundry
 
 # Custom port
 npx emulate --port 3000
@@ -33,11 +62,14 @@ npx emulate --port 3000
 # Use a seed config file
 npx emulate --seed config.yaml
 
-# Generate a starter config
-npx emulate init
+# Launch the interactive starter-config builder
+emulate init
 
 # Generate config for a specific service
-npx emulate init --service vercel
+emulate init --service foundry
+
+# Print starter YAML without writing a file
+emulate init --service foundry --stdout
 
 # List available services
 npx emulate list
@@ -48,12 +80,21 @@ npx emulate list
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-p, --port` | `4000` | Base port (auto-increments per service) |
-| `-s, --service` | all | Comma-separated services to enable |
+| `-s, --service` | default startup set | Comma-separated services to enable |
 | `--seed` | auto-detect | Path to seed config (YAML or JSON) |
 | `--base-url` | none | Override advertised base URL (supports `{service}` template) |
 | `--portless` | off | Serve over HTTPS via portless (auto-registers aliases) |
 
 The port can also be set via `EMULATE_PORT` or `PORT` environment variables.
+
+### Starter config generation
+
+- `emulate init` opens an interactive builder when you have a TTY.
+- `emulate init --service foundry` writes `emulate.config.yaml` with a Foundry starter template and a working `foundry_test_token`.
+- `emulate init --service github,foundry --stdout` prints bundled starter YAML for scripting or redirection.
+- `emulate init --out ./configs/local.yaml --force` writes to a custom path and overwrites the file when needed.
+
+When Foundry starts, the banner also prints a `Quick start` section with a ready-to-open authorize URL and curl examples for `/multipass/api/me` and `/api/v2/admin/users/getCurrent`.
 
 ## HTTPS with portless
 
@@ -64,7 +105,7 @@ The port can also be set via `EMULATE_PORT` or `PORT` environment variables.
 portless proxy start
 
 # Start emulate with portless integration
-npx emulate start --portless
+emulate start --portless
 ```
 
 Each service registers as a portless alias and gets a named HTTPS URL:
@@ -82,7 +123,7 @@ The `--portless` flag overwrites any existing portless aliases matching `*.emula
 For a custom base URL without portless (any reverse proxy), use `--base-url` or the `EMULATE_BASE_URL` env var:
 
 ```bash
-npx emulate start --base-url "https://{service}.myproxy.test"
+emulate start --base-url "https://{service}.myproxy.test"
 ```
 
 The `PORTLESS_URL` env var is automatically set by the `portless` CLI wrapper when running a command through it (e.g. `portless github.emulate emulate start`), typically to a value like `https://{service}.emulate.localhost`. It supports `{service}` interpolation, just like `--base-url` and `EMULATE_BASE_URL`. When no explicit `baseUrl` is provided, it is used as a fallback.
@@ -97,29 +138,32 @@ github:
 ## Programmatic API
 
 ```bash
-npm install emulate
+npm install @nyrra/emulate
 ```
 
 Each call to `createEmulator` starts a single service:
 
 ```typescript
-import { createEmulator } from 'emulate'
+import { createEmulator } from '@nyrra/emulate'
 
 const github = await createEmulator({ service: 'github', port: 4001 })
 const vercel = await createEmulator({ service: 'vercel', port: 4002 })
+const foundry = await createEmulator({ service: 'foundry', port: 4003 })
 
 github.url   // 'http://localhost:4001'
 vercel.url   // 'http://localhost:4002'
+foundry.url  // 'http://localhost:4003'
 
 await github.close()
 await vercel.close()
+await foundry.close()
 ```
 
 ### Vitest / Jest setup
 
 ```typescript
 // vitest.setup.ts
-import { createEmulator, type Emulator } from 'emulate'
+import { createEmulator, type Emulator } from '@nyrra/emulate'
 
 let github: Emulator
 let vercel: Emulator
@@ -141,7 +185,7 @@ afterAll(() => Promise.all([github.close(), vercel.close()]))
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `service` | *(required)* | Service name: `'vercel'`, `'github'`, `'google'`, `'slack'`, `'apple'`, `'microsoft'`, or `'aws'` |
+| `service` | *(required)* | Registered service name such as `'vercel'`, `'github'`, `'google'`, `'slack'`, `'apple'`, `'microsoft'`, `'aws'`, or `'foundry'` |
 | `port` | `4000` | Port for the HTTP server |
 | `seed` | none | Inline seed data (same shape as YAML config) |
 | `baseUrl` | none | Override advertised base URL. Per-service `baseUrl` in seed config takes highest priority, then this option, then `EMULATE_BASE_URL` env var (supports `{service}`), then `PORTLESS_URL` (supports `{service}`, automatically set by the `portless` CLI wrapper), then `http://localhost:<port>`. |
@@ -156,7 +200,7 @@ afterAll(() => Promise.all([github.close(), vercel.close()]))
 
 ## Configuration
 
-Configuration is optional. The CLI auto-detects config files in this order: `emulate.config.yaml` / `.yml`, `emulate.config.json`, `service-emulator.config.yaml` / `.yml`, `service-emulator.config.json`. Or pass `--seed <file>` explicitly. Run `npx emulate init` to generate a starter file.
+Configuration is optional. The CLI auto-detects config files in this order: `emulate.config.yaml` / `.yml`, `emulate.config.json`, `service-emulator.config.yaml` / `.yml`, `service-emulator.config.json`. Or pass `--seed <file>` explicitly. Run `emulate init` for the interactive builder, or use `emulate init --service <name> --stdout` to generate starter YAML non-interactively.
 
 ```yaml
 tokens:
@@ -354,6 +398,42 @@ microsoft:
       redirect_uris:
         - http://localhost:3000/api/auth/callback/microsoft-entra-id
 
+foundry:
+  users:
+    - username: jane
+      display_name: Jane Smith
+      email: jane@example.com
+      given_name: Jane
+      family_name: Smith
+      attributes:
+        department:
+          - Finance
+  oauth_clients:
+    - client_id: foundry-web
+      client_secret: foundry-secret
+      name: Foundry Web App
+      redirect_uris:
+        - http://localhost:3000/callback
+      grant_types:
+        - authorization_code
+        - refresh_token
+        - client_credentials
+      allowed_scopes:
+        - api:admin-read
+        - api:ontologies-read
+        - api:ontologies-write
+        - offline_access
+  compute_modules:
+    deployed_apps:
+      - deployed_app_rid: ri.foundry.main.deployed-app.agent-loop
+        branch: master
+        runtime_id: agent-loop
+        display_name: Agent Loop
+        active: true
+    runtimes:
+      - runtime_id: agent-loop
+        module_auth_token: local-module-auth-token
+
 aws:
   region: us-east-1
   s3:
@@ -470,6 +550,42 @@ microsoft:
       redirect_uris:
         - "http://localhost:3000/api/auth/callback/microsoft-entra-id"
 ```
+
+### Foundry OAuth Clients
+
+```yaml
+foundry:
+  oauth_clients:
+    - client_id: "foundry-web"
+      client_secret: "foundry-secret"
+      name: "Foundry Web App"
+      redirect_uris:
+        - "http://localhost:3000/callback"
+      allowed_scopes:
+        - "api:admin-read"
+        - "api:ontologies-read"
+        - "offline_access"
+```
+
+When no `oauth_clients` are configured, Foundry accepts any `client_id`. With clients configured, strict validation is enforced for `client_id`, `client_secret`, `redirect_uri`, grant type, and requested scopes.
+
+### Foundry Compute Modules
+
+```yaml
+foundry:
+  compute_modules:
+    deployed_apps:
+      - deployed_app_rid: ri.foundry.main.deployed-app.agent-loop
+        branch: master
+        runtime_id: agent-loop
+        display_name: Agent Loop
+        active: true
+    runtimes:
+      - runtime_id: agent-loop
+        module_auth_token: local-module-auth-token
+```
+
+No compute-module state is seeded by default. Use either `compute_modules` in the seed config or `POST /_emulate/foundry/compute-modules/runtimes` to provision a runtime session for tests.
 
 ## Vercel API
 
@@ -777,6 +893,50 @@ Microsoft Entra ID (Azure AD) v2.0 OAuth 2.0 and OpenID Connect emulation with a
 - `GET /oauth2/v2.0/logout` - end session / logout
 - `POST /oauth2/v2.0/revoke` - token revocation
 
+## Foundry
+
+Palantir Foundry emulation with OAuth 2.0, admin identity, connectivity, ontology queries, and compute-module runtime plus contour job routes.
+
+### OAuth and admin identity
+
+- `GET /multipass/api/oauth2/authorize` - authorization endpoint (shows user picker)
+- `POST /multipass/api/oauth2/token` - token exchange (authorization code, refresh token, client credentials)
+- `GET /api/v2/admin/users/getCurrent` - current user lookup
+- `GET /api/v2/admin/enrollments/getCurrent` - current enrollment lookup
+- `GET /multipass/api/me` - CLI compatibility shim returning `id`, `username`, and `displayName`
+
+### Connectivity and ontologies
+
+- `POST /api/v2/connectivity/connections` - create a REST connection
+- `GET /api/v2/connectivity/connections/:connectionRid` - fetch a connection, including worker and configuration metadata
+- `GET /api/v2/connectivity/connections/:connectionRid/getConfiguration` - fetch connection configuration with secret names only
+- `POST /api/v2/connectivity/connections/:connectionRid/updateSecrets` - update connection secrets and return 204
+- `GET /api/v2/ontologies` - list ontologies, honoring `pageSize` and `pageToken` request params
+- `POST /api/v2/ontologies/:ontology/queries/:queryApiName/execute` - execute a seeded ontology query by RID or `apiName`
+
+### Compute modules
+
+- `POST /_emulate/foundry/compute-modules/runtimes` - create or reset a runtime session and return runtime URLs plus `Module-Auth-Token`
+- `GET /_emulate/foundry/compute-modules/runtimes/:runtimeId/job` - runtime poll route that returns `computeModuleJobV1` or `204`
+- `POST /_emulate/foundry/compute-modules/runtimes/:runtimeId/schemas` - runtime schema upload
+- `POST /_emulate/foundry/compute-modules/runtimes/:runtimeId/results/:jobId` - runtime result upload with exact raw body preservation
+- `POST /contour-backend-multiplexer/api/module-group-multiplexer/compute-modules/jobs/execute` - sync contour execute route
+- `POST /contour-backend-multiplexer/api/module-group-multiplexer/deployed-apps/jobs` - async contour submit route
+- `GET /contour-backend-multiplexer/api/module-group-multiplexer/jobs/:jobId/status` - async contour status route
+- `PUT /contour-backend-multiplexer/api/module-group-multiplexer/jobs/result/v2` - async contour raw result fetch
+
+Behavior notes:
+
+- The token endpoint accepts `application/x-www-form-urlencoded`
+- `offline_access` returns refresh tokens and refresh rotates them
+- `client_credentials` creates a service principal whose username matches `client_id`
+- `getCurrent` and `getCurrent enrollment` require the `api:admin-read` scope
+- Connectivity routes enforce `api:connectivity-connection-read` and `api:connectivity-connection-write`
+- Ontology list and query execution enforce `api:ontologies-read`
+- `getConfiguration` and `GET /connections/:rid` return secret names only, never plaintext secret values
+- Runtime polling, schema, and result routes require the exact `Module-Auth-Token` header returned by the control route
+- Contour routes require bearer auth and return raw `application/octet-stream` bodies for both single JSON and streaming outputs
+
 ## AWS
 
 S3, SQS, IAM, and STS emulation with AWS SDK-compatible S3 paths and query-style SQS/IAM/STS endpoints. All responses use AWS-compatible XML.
@@ -938,12 +1098,103 @@ packages/
     slack/          # Slack Web API, OAuth v2, incoming webhooks
     apple/          # Apple Sign In / OIDC
     microsoft/      # Microsoft Entra ID OAuth 2.0 / OIDC + Graph /me
+    clerk/          # Clerk users + organizations + OAuth applications
+    foundry/        # Foundry OAuth 2.0 + compute modules + current user
     aws/            # AWS S3, SQS, IAM, STS
+    okta/           # Okta identity provider / OIDC
+    mongoatlas/     # MongoDB Atlas Admin API + Data API
+    resend/         # Resend email API
+    stripe/         # Stripe billing and payments API
 apps/
-  web/              # Documentation site (Next.js)
+  web-svelte/       # Deployable docs site (SvelteKit + Cloudflare adapter)
+  web/              # Upstream Next.js docs / content source (not deployed)
 ```
 
 The core provides a generic `Store` with typed `Collection<T>` instances supporting CRUD, indexing, filtering, and pagination. Each service plugin registers its routes with the shared internal app and uses the store for state.
+
+## Docs Site
+
+The deployable docs app is `apps/web-svelte`, deployed to Cloudflare Workers. Build it with:
+
+```bash
+pnpm --filter web-svelte build
+```
+
+The build emits a Cloudflare adapter output under `apps/web-svelte/.svelte-kit/cloudflare/`, containing prerendered HTML for every docs route, the worker entry, and static assets.
+
+### Content sources
+
+The docs site serves two kinds of content through a unified registry at `apps/web-svelte/src/lib/docs-registry.ts`:
+
+| Kind | Source | Examples |
+|------|--------|----------|
+| **upstream** | `packages/docs-upstream/generated/content/` | `/vercel`, `/github`, `/configuration` |
+| **local** | `apps/web-svelte/src/content/` | `/foundry/auth/oauth`, `/foundry/reference/endpoints` |
+
+`apps/web` is a read-only upstream mirror. It is never deployed. Its MDX content is consumed through `packages/docs-upstream`, which provides the owned ingestion boundary between the upstream mirror and the deployed app.
+
+### Upstream sync
+
+When upstream content changes, regenerate the ingestion artifacts:
+
+```bash
+pnpm docs:sync          # regenerate packages/docs-upstream/generated/
+pnpm docs:sync:check    # dry-run; exits 1 if committed artifacts are stale
+```
+
+Then verify the Svelte build:
+
+```bash
+pnpm --filter web-svelte type-check
+pnpm --filter web-svelte build
+pnpm --filter web-svelte lint
+```
+
+### Local Foundry docs
+
+Local Foundry docs live under `apps/web-svelte/src/content/foundry/` as plain Markdown files. The file path determines the route: `src/content/foundry/auth/oauth.md` serves at `/foundry/auth/oauth`. Add new Foundry pages by creating a `.md` file at the desired path; the unified registry and the `[...slug]` route pick them up automatically.
+
+### Routing
+
+All non-root docs pages (both upstream and local) are served by a single rest-param route at `apps/web-svelte/src/routes/[...slug]/`. This supports nested paths like `/foundry/auth/oauth` alongside single-segment paths like `/vercel`. The route prerenders one HTML file per entry in the docs registry.
+
+### Rendering pipeline
+
+If the build fails on upstream MDX or a page renders incorrectly, the fix usually lives in:
+
+- `apps/web-svelte/src/lib/mdx-to-markdown.ts` for stripping MDX-only artifacts
+- `apps/web-svelte/src/lib/render-docs.server.ts` for the marked + Shiki renderer
+
+The visible shell branding and per-page metadata also live in a small set of shared files rather than in each route:
+
+- `apps/web-svelte/src/lib/components/Header.svelte` owns the header brand cluster (the F mark, the `FoundryCI` wordmark, the `by Nyrra` link, plus the search / GitHub / npm / theme-toggle nav). Edit the wordmark, mark, or brand-link copy here.
+- `apps/web-svelte/src/routes/+layout.svelte` owns the footer attribution row (`Built on emulate by Vercel Labs` and `A Nyrra project`). Edit footer copy or attribution links here.
+- `apps/web-svelte/src/lib/page-metadata.ts` is the single source for `<title>`, meta description, and Open Graph / Twitter metadata. The `ROOT_*` constants drive the homepage card; the `FOUNDRYCI_PAGE_METADATA` map opts FoundryCI-critical pages out of the generic `${displayTitle} | emulate` template.
+- `apps/web-svelte/static/og-default.svg` is the source-of-truth social card (embedded Geist + GeistPixelSquare TTFs); `apps/web-svelte/static/og-default.png` is the rasterized output the build serves. The SVG is the canonical, human-reviewable form.
+
+Per-route components are intentionally thin and should not carry brand strings of their own.
+
+Deploy wiring status: the repo now ships a real Cloudflare Worker config at `apps/web-svelte/wrangler.jsonc`, with `workers_dev` and `preview_urls` enabled plus a custom-domain route for `foundryci.com`. `pnpm --filter web-svelte deploy:dry-run` still rebuilds the Worker locally and validates the packaging path without touching a real account, while `pnpm --filter web-svelte deploy:preview` uploads a preview version to a Workers preview URL when `PREVIEW_ALIAS` is set and `pnpm --filter web-svelte deploy:production` performs the real production deploy. The same local `pnpm --filter web-svelte preview:worker` script still boots the built artifact under `wrangler dev --local` on `http://127.0.0.1:8788`, and `pnpm --filter web-svelte preview:worker:stop` remains the repo-local cleanup helper if that preview process tree gets stuck.
+
+To keep fresh installs deterministic for this build / preview / deploy path, the root `package.json` declares `pnpm.onlyBuiltDependencies = ["esbuild", "workerd"]` and `pnpm.ignoredBuiltDependencies` for the unrelated workspace build-script dependencies, so `pnpm install --frozen-lockfile` exits zero without prompting for build approval. GitHub Actions now has two layers:
+
+- `.github/workflows/ci.yml` runs `format:check`, `type-check`, `lint`, `test`, `build`, and `pnpm --filter web-svelte deploy:dry-run` on every pull request and push to `main`.
+- `.github/workflows/deploy-cloudflare.yml` is path-gated, concurrency-guarded, deploys PR previews with `wrangler versions upload --preview-alias`, deploys `main` to the `foundryci.com` custom domain with `wrangler deploy`, and comments the resulting preview or production deployment back onto the relevant pull request.
+
+Required GitHub secrets for the deploy workflow:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+If the production docs domain changes from the value encoded in `apps/web-svelte/src/lib/page-metadata.ts`, update that file and `apps/web-svelte/wrangler.jsonc` together so the deployed hostname and metadata `BASE_URL` stay in lockstep.
+
+Upstream docs sync: after pulling upstream changes into `apps/web`, run `pnpm docs:sync` to regenerate the ingestion artifacts in `packages/docs-upstream/generated/`. Then verify with `pnpm --filter web-svelte type-check && pnpm --filter web-svelte build`. CI enforces `pnpm docs:sync:check`, which exits non-zero if committed artifacts are stale. See `docs/contributing/upstream-sync.md` for the full workflow.
+
+Adding a new upstream-backed route: when upstream adds a new page to both `apps/web/app/<slug>/page.mdx` and `apps/web/lib/docs-pages.ts`, run `pnpm docs:sync` to pick it up. The `PAGE_TITLES` map in `apps/web-svelte/src/lib/page-titles.ts` derives from the upstream catalog automatically. Add the href to `apps/web-svelte/src/lib/nav.ts` to make it visible in the sidebar. No new route files are needed; the `[...slug]` route prerenders all entries from the docs registry automatically.
+
+Adding a new local Foundry page: create a `.md` file under `apps/web-svelte/src/content/foundry/` at the desired path. The unified docs registry discovers it via Vite's eager glob, and the `[...slug]` route picks it up. Add it to the nav hierarchy in `nav.ts` if it should appear in the sidebar. See `docs/contributing/local-docs-authoring.md` for conventions.
+
+Search indexing: the search index in `apps/web-svelte/src/lib/search-index.ts` derives from the unified docs registry. Both upstream and local pages are indexed automatically. No separate search page list needs to be maintained.
 
 ## Auth
 
@@ -960,5 +1211,7 @@ Tokens are configured in the seed config and map to users. Pass them as `Authori
 **Apple**: OIDC authorization code flow with RS256 ID tokens. On first auth per user/client pair, a `user` JSON blob is included.
 
 **Microsoft**: OIDC authorization code flow with PKCE support. Also supports client credentials grants. Microsoft Graph `/v1.0/me` available.
+
+**Foundry**: OAuth 2.0 authorization code, refresh token, and client credentials flows, plus compute-module runtime and contour job routes. `GET /api/v2/admin/users/getCurrent` requires `api:admin-read`.
 
 **AWS**: Bearer tokens or IAM access key credentials. Default key pair always seeded: `AKIAIOSFODNN7EXAMPLE` / `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`.

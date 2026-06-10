@@ -1,0 +1,43 @@
+{
+  "name": "web-svelte",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:cloudflare": "rm -rf .svelte-kit/cloudflare && vite build",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "type-check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "deploy:dry-run": "pnpm run build:cloudflare && wrangler deploy --dry-run",
+    "deploy:preview": "sh -c 'test -n \"$PREVIEW_ALIAS\" || { echo >&2 \"PREVIEW_ALIAS is required\"; exit 1; }; pnpm run build:cloudflare && wrangler versions upload --preview-alias \"$PREVIEW_ALIAS\"'",
+    "deploy:production": "pnpm run build:cloudflare && wrangler deploy",
+    "preview:worker": "pnpm run build:cloudflare && wrangler dev --local --ip 127.0.0.1 --port 8788 --show-interactive-dev-session=false",
+    "preview:worker:stop": "bash scripts/stop-preview-worker.sh"
+  },
+  "dependencies": {
+    "@sveltejs/kit": "^2",
+    "docs-upstream": "workspace:*",
+    "marked": "^18.0.0",
+    "shiki": "4.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@sveltejs/adapter-cloudflare": "^7",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tailwindcss/vite": "^4",
+    "eslint": "^9",
+    "eslint-plugin-svelte": "^3",
+    "globals": "^17.4.0",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "typescript-eslint": "^8",
+    "vite": "^8.0.8",
+    "wrangler": "^4.81.1"
+  }
+}

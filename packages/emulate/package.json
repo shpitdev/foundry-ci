@@ -1,7 +1,7 @@
 {
-  "name": "emulate",
-  "version": "0.6.0",
-  "description": "Local drop-in replacement services for CI and no-network sandboxes",
+  "name": "@nyrra/emulate",
+  "version": "0.4.2",
+  "description": "Local drop-in replacement services for CI and no-network sandboxes, including Palantir Foundry",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -15,14 +15,14 @@
   },
   "main": "./dist/api.js",
   "types": "./dist/api.d.ts",
-  "homepage": "https://emulate.dev",
+  "homepage": "https://github.com/nyrra-labs/nyrra-emulate#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vercel-labs/emulate.git",
+    "url": "git+https://github.com/nyrra-labs/nyrra-emulate.git",
     "directory": "packages/emulate"
   },
   "bugs": {
-    "url": "https://github.com/vercel-labs/emulate/issues"
+    "url": "https://github.com/nyrra-labs/nyrra-emulate/issues"
   },
   "keywords": [
     "emulator",
@@ -31,19 +31,25 @@
     "vercel",
     "github",
     "google",
+    "foundry",
+    "palantir",
+    "palantir-foundry",
     "oauth",
     "testing",
     "ci",
     "local-development"
   ],
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map"
   ],
   "bin": {
     "emulate": "./dist/index.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "prepack": "cp ../../README.md .",
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
@@ -52,24 +58,27 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@clack/prompts": "^1.2.0",
+    "@hono/node-server": "^1",
     "commander": "^14",
     "picocolors": "^1.1.1",
     "yaml": "^2"
   },
   "devDependencies": {
-    "@emulators/core": "workspace:*",
-    "@emulators/github": "workspace:*",
     "@emulators/apple": "workspace:*",
-    "@emulators/microsoft": "workspace:*",
-    "@emulators/okta": "workspace:*",
     "@emulators/aws": "workspace:*",
-    "@emulators/google": "workspace:*",
-    "@emulators/mongoatlas": "workspace:*",
-    "@emulators/slack": "workspace:*",
-    "@emulators/vercel": "workspace:*",
-    "@emulators/resend": "workspace:*",
-    "@emulators/stripe": "workspace:*",
     "@emulators/clerk": "workspace:*",
+    "@emulators/core": "workspace:*",
+    "@emulators/foundry": "workspace:*",
+    "@emulators/github": "workspace:*",
+    "@emulators/google": "workspace:*",
+    "@emulators/microsoft": "workspace:*",
+    "@emulators/mongoatlas": "workspace:*",
+    "@emulators/okta": "workspace:*",
+    "@emulators/resend": "workspace:*",
+    "@emulators/slack": "workspace:*",
+    "@emulators/stripe": "workspace:*",
+    "@emulators/vercel": "workspace:*",
     "tsup": "^8",
     "typescript": "^5.7"
   }

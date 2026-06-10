@@ -1,4 +1,12 @@
 import type { ServicePlugin, Store, AppKeyResolver, AuthFallback, WebhookDispatcher } from "@emulators/core";
+import { DEFAULT_SERVICE_NAMES, SERVICE_NAMES, type ServiceName } from "./service-names";
+
+export interface InitTokenTemplate {
+  login: string;
+  scopes?: string[];
+}
+
+export { DEFAULT_SERVICE_NAMES, SERVICE_NAMES, type ServiceName } from "./service-names";
 
 export interface LoadedService {
   plugin: ServicePlugin;
@@ -13,23 +21,6 @@ export interface ServiceEntry {
   defaultFallback(svcSeedConfig?: Record<string, unknown>): AuthFallback;
   initConfig: Record<string, unknown>;
 }
-
-const SERVICE_NAME_LIST = [
-  "vercel",
-  "github",
-  "google",
-  "slack",
-  "apple",
-  "microsoft",
-  "okta",
-  "aws",
-  "resend",
-  "stripe",
-  "mongoatlas",
-  "clerk",
-] as const;
-export type ServiceName = (typeof SERVICE_NAME_LIST)[number];
-export const SERVICE_NAMES: readonly ServiceName[] = SERVICE_NAME_LIST;
 
 export const SERVICE_REGISTRY: Record<ServiceName, ServiceEntry> = {
   vercel: {
@@ -348,6 +339,44 @@ export const SERVICE_REGISTRY: Record<ServiceName, ServiceEntry> = {
     },
   },
 
+  foundry: {
+    label: "Palantir Foundry OAuth 2.0 and current user emulator",
+    endpoints: "OAuth authorize, token exchange, current user lookup",
+    async load() {
+      const mod = await import("@emulators/foundry");
+      return { plugin: mod.foundryPlugin, seedFromConfig: mod.seedFromConfig };
+    },
+    defaultFallback(cfg) {
+      const firstLogin = (cfg?.users as Array<{ username?: string }> | undefined)?.[0]?.username ?? "admin";
+      return { login: firstLogin, id: 1, scopes: ["api:admin-read"] };
+    },
+    initConfig: {
+      foundry: {
+        users: [
+          {
+            username: "jane",
+            display_name: "Jane Smith",
+            email: "jane@example.com",
+            given_name: "Jane",
+            family_name: "Smith",
+            attributes: {
+              department: ["Finance"],
+            },
+          },
+        ],
+        oauth_clients: [
+          {
+            client_id: "foundry-web",
+            client_secret: "foundry-secret",
+            name: "Foundry Web App",
+            redirect_uris: ["http://localhost:3000/callback"],
+            allowed_scopes: ["api:admin-read", "api:ontologies-read", "api:ontologies-write", "offline_access"],
+          },
+        ],
+      },
+    },
+  },
+
   okta: {
     label: "Okta OAuth 2.0 / OpenID Connect + management API emulator",
     endpoints:
@@ -504,15 +533,19 @@ export const SERVICE_REGISTRY: Record<ServiceName, ServiceEntry> = {
   },
 };
 
-export const DEFAULT_TOKENS = {
-  tokens: {
-    test_token_admin: {
-      login: "admin",
-      scopes: ["repo", "user", "admin:org", "admin:repo_hook"],
-    },
-    test_token_user1: {
-      login: "octocat",
-      scopes: ["repo", "user"],
-    },
-  },
-};
+export function buildInitTokens(services: readonly ServiceName[]): Record<string, InitTokenTemplate> {
+  const tokens: Record<string, InitTokenTemplate> = {};
+
+  for (const service of services) {
+    const entry = SERVICE_REGISTRY[service];
+    const serviceConfig = entry.initConfig[service] as Record<string, unknown> | undefined;
+    const fallback = entry.defaultFallback(serviceConfig);
+
+    tokens[`${service}_test_token`] = {
+      login: fallback.login,
+      ...(fallback.scopes && fallback.scopes.length > 0 ? { scopes: [...fallback.scopes] } : {}),
+    };
+  }
+
+  return tokens;
+}
