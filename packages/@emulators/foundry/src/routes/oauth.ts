@@ -274,7 +274,10 @@ export function oauthRoutes({ app, store, tokenMap }: RouteContext): void {
       if (requiresClientValidation(fs) && !client) {
         return foundryOauthError(c, 401, "invalid_client", "The client_id is incorrect.");
       }
-      if (client && client_secret && !constantTimeSecretEqual(client_secret, client.client_secret)) {
+      if (client && !client_secret) {
+        return foundryOauthError(c, 400, "invalid_request", "The client_secret parameter is required.");
+      }
+      if (client && !constantTimeSecretEqual(client_secret, client.client_secret)) {
         return foundryOauthError(c, 401, "invalid_client", "The client_secret is incorrect.");
       }
 
@@ -362,7 +365,10 @@ export function oauthRoutes({ app, store, tokenMap }: RouteContext): void {
       if (requiresClientValidation(fs) && !client) {
         return foundryOauthError(c, 401, "invalid_client", "The client_id is incorrect.");
       }
-      if (client && client_secret && !constantTimeSecretEqual(client_secret, client.client_secret)) {
+      if (client && !client_secret) {
+        return foundryOauthError(c, 400, "invalid_request", "The client_secret parameter is required.");
+      }
+      if (client && !constantTimeSecretEqual(client_secret, client.client_secret)) {
         return foundryOauthError(c, 401, "invalid_client", "The client_secret is incorrect.");
       }
 

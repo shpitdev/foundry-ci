@@ -155,6 +155,16 @@ describe("Foundry auth slice", () => {
     expect(body.expires_in).toBe(3600);
   });
 
+  it("rejects authorization_code exchange without client_secret for configured clients", async () => {
+    const { code } = await getAuthCode(app);
+
+    const tokenRes = await exchangeCode(app, code);
+    expect(tokenRes.status).toBe(400);
+    const body = (await tokenRes.json()) as Record<string, unknown>;
+    expect(body.error).toBe("invalid_request");
+    expect(body.error_description).toBe("The client_secret parameter is required.");
+  });
+
   it("supports PKCE S256 verification", async () => {
     const verifier = "this-is-a-long-pkce-verifier-value-1234567890";
     const challenge = createHash("sha256").update(verifier).digest("base64url");
@@ -213,6 +223,29 @@ describe("Foundry auth slice", () => {
     const refreshBody = (await refreshRes.json()) as Record<string, unknown>;
     expect((refreshBody.access_token as string).startsWith("foundry_")).toBe(true);
     expect(refreshBody.refresh_token).not.toBe(refreshToken);
+  });
+
+  it("rejects refresh_token exchange without client_secret for configured clients", async () => {
+    const { code } = await getAuthCode(app);
+    const tokenRes = await exchangeCode(app, code, { client_secret: "foundry-secret" });
+    const tokenBody = (await tokenRes.json()) as Record<string, unknown>;
+    const refreshToken = tokenBody.refresh_token as string;
+
+    const refreshForm = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: "foundry-web",
+    });
+    const refreshRes = await app.request(`${base}/multipass/api/oauth2/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: refreshForm.toString(),
+    });
+
+    expect(refreshRes.status).toBe(400);
+    const body = (await refreshRes.json()) as Record<string, unknown>;
+    expect(body.error).toBe("invalid_request");
+    expect(body.error_description).toBe("The client_secret parameter is required.");
   });
 
   it("issues a service principal token for client_credentials", async () => {

@@ -8,6 +8,16 @@ export interface InitTokenTemplate {
 
 export { DEFAULT_SERVICE_NAMES, SERVICE_NAMES, type ServiceName } from "./service-names";
 
+export function buildDefaultTokens(): Record<string, { login: string; id: number; scopes: string[] }> {
+  return {
+    test_token_admin: {
+      login: "admin",
+      id: 2,
+      scopes: ["repo", "user", "admin:org", "admin:repo_hook", "api:admin-read"],
+    },
+  };
+}
+
 export interface LoadedService {
   plugin: ServicePlugin;
   seedFromConfig?(store: Store, baseUrl: string, config: unknown, webhooks?: WebhookDispatcher): void;

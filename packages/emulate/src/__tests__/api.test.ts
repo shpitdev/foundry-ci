@@ -29,6 +29,19 @@ describe("createEmulator", () => {
     await Promise.all([github.close(), vercel.close()]);
   });
 
+  it("starts foundry with a default token that can read the current user", async () => {
+    const foundry = await createEmulator({ service: "foundry", port: 14012 });
+
+    const res = await fetch(`${foundry.url}/api/v2/admin/users/getCurrent`, {
+      headers: { Authorization: "Bearer test_token_admin" },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { username: string };
+    expect(body.username).toBe("admin");
+
+    await foundry.close();
+  });
+
   it("reset wipes and re-seeds stores", async () => {
     const github = await createEmulator({
       service: "github",

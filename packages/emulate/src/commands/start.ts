@@ -1,5 +1,11 @@
 import { createServer, type AppKeyResolver, type Store } from "@emulators/core";
-import { DEFAULT_SERVICE_NAMES, SERVICE_REGISTRY, SERVICE_NAMES, type ServiceName } from "../registry.js";
+import {
+  buildDefaultTokens,
+  DEFAULT_SERVICE_NAMES,
+  SERVICE_REGISTRY,
+  SERVICE_NAMES,
+  type ServiceName,
+} from "../registry.js";
 import { createAdaptorServer } from "@hono/node-server";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
@@ -154,11 +160,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
       tokens[token] = { login: user.login, id: tokenId++, scopes: user.scopes };
     }
   } else {
-    tokens["test_token_admin"] = {
-      login: "admin",
-      id: 2,
-      scopes: ["repo", "user", "admin:org", "admin:repo_hook", "api:admin-read"],
-    };
+    Object.assign(tokens, buildDefaultTokens());
   }
 
   if (options.portless) {

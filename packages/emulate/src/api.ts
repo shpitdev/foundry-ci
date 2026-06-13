@@ -1,5 +1,5 @@
 import { createServer, serve, type AppKeyResolver, type Store } from "@emulators/core";
-import { SERVICE_REGISTRY } from "./registry.js";
+import { buildDefaultTokens, SERVICE_REGISTRY } from "./registry.js";
 export type { ServiceName } from "./registry.js";
 import type { ServiceName } from "./registry.js";
 import { resolveBaseUrl } from "./base-url.js";
@@ -39,7 +39,7 @@ export async function createEmulator(options: EmulatorOptions): Promise<Emulator
       tokens[token] = { login: user.login, id: tokenId++, scopes: user.scopes };
     }
   } else {
-    tokens["test_token_admin"] = { login: "admin", id: 2, scopes: ["repo", "user", "admin:org", "admin:repo_hook"] };
+    Object.assign(tokens, buildDefaultTokens());
   }
 
   const svcSeedConfig = seedConfig?.[service] as Record<string, unknown> | undefined;
