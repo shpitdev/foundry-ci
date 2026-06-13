@@ -45,7 +45,9 @@ When a change affects how humans or agents use emulate (new/changed/removed comm
 4. For Foundry changes: `apps/web/app/docs/foundry/**/page.mdx`
 5. For upstream service changes: `apps/web/app/docs/<service>/page.mdx` (these pages come from upstream; prefer taking upstream's edits via merge over hand-editing)
 
-Note: `apps/web` is the deployed docs + landing site, built with vinext. When adding or moving a docs page, also update `apps/web/lib/docs-sections.ts` (sidebar), `lib/docs-navigation.ts` (search index), `lib/page-titles.ts` (titles/OG), and the redirects in `next.config.mjs`. Brand strings live only in `apps/web/lib/site.ts`. See `docs/architecture/docs-platform.md` for the full ownership model.
+Note: `apps/web` is the deployed docs + landing site, built with vinext. When adding or moving a docs page, also update `apps/web/lib/docs-sections.ts` (sidebar), `lib/docs-navigation.ts` (search index), `lib/page-titles.ts` (titles/OG), and the redirects in `next.config.mjs`. Prefer `pnpm new-page --slug <path> --title "..." --section "<sidebar section>"`, which scaffolds the page and performs the lib insertions. Brand strings live only in `apps/web/lib/site.ts`. See `docs/architecture/docs-platform.md` for the full ownership model.
+
+For Foundry route or scope changes, update `packages/@emulators/foundry/src/route-registry.ts`; the reference doc tables are generated from it by `pnpm docs-gen` and CI fails on drift. Never hand-edit content between `{/* docs-gen:begin */}` markers.
 
 ## Claude Worker Trial
 

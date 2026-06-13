@@ -4,11 +4,14 @@ All endpoints served by the Foundry emulator, organized by category.
 
 ## OAuth 2.0
 
+{/* docs-gen:begin endpoints-oauth */}
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/multipass/api/oauth2/authorize` | None | Authorization page; renders user selection UI |
-| POST | `/multipass/api/oauth2/authorize/callback` | None | Processes user selection; redirects with authorization code |
-| POST | `/multipass/api/oauth2/token` | None | Token exchange for all grant types |
+| GET | `/multipass/api/oauth2/authorize` | None | OAuth 2.0 authorization endpoint. Renders user selection UI. |
+| POST | `/multipass/api/oauth2/authorize/callback` | None | Authorization callback. Issues an authorization code after user consent. |
+| POST | `/multipass/api/oauth2/token` | None | Token exchange. Supports authorization_code, refresh_token, and client_credentials grants. |
+| GET | `/multipass/api/me` | Bearer | CLI compatibility shim returning id, username, and displayName for the current principal. |
+{/* docs-gen:end endpoints-oauth */}
 
 ### Token Endpoint Grant Types
 
@@ -22,50 +25,59 @@ The token endpoint (`POST /multipass/api/oauth2/token`) handles three grant type
 
 ## Admin API
 
+{/* docs-gen:begin endpoints-admin */}
 | Method | Path | Auth | Required Scope | Description |
 |---|---|---|---|---|
-| GET | `/api/v2/admin/users/getCurrent` | Bearer | `api:admin-read` | Returns the current authenticated user |
-| GET | `/api/v2/admin/enrollments/getCurrent` | Bearer | `api:admin-read` | Returns the current enrollment |
-| GET | `/multipass/api/me` | Bearer | None | Returns the CLI-compatible principal shape |
+| GET | `/api/v2/admin/users/getCurrent` | Bearer | `api:admin-read` | Returns the current authenticated user or service principal. |
+| GET | `/api/v2/admin/enrollments/getCurrent` | Bearer | `api:admin-read` | Returns the current enrollment for the authenticated principal. |
+{/* docs-gen:end endpoints-admin */}
 
 ## Connectivity API
 
+{/* docs-gen:begin endpoints-connectivity */}
 | Method | Path | Auth | Required Scope | Description |
 |---|---|---|---|---|
-| POST | `/api/v2/connectivity/connections` | Bearer | `api:connectivity-connection-write` | Create a REST connection |
-| GET | `/api/v2/connectivity/connections/:connectionRid` | Bearer | `api:connectivity-connection-read` | Fetch a connection |
-| GET | `/api/v2/connectivity/connections/:connectionRid/getConfiguration` | Bearer | `api:connectivity-connection-read` | Fetch configuration with secret names only |
-| POST | `/api/v2/connectivity/connections/:connectionRid/updateSecrets` | Bearer | `api:connectivity-connection-write` | Update secrets and return 204 |
+| POST | `/api/v2/connectivity/connections` | Bearer | `api:connectivity-connection-write` | Create a REST API connection. |
+| GET | `/api/v2/connectivity/connections/:connectionRid` | Bearer | `api:connectivity-connection-read` | Fetch a connection, including worker and configuration metadata. |
+| GET | `/api/v2/connectivity/connections/:connectionRid/getConfiguration` | Bearer | `api:connectivity-connection-read` | Fetch a connection configuration without leaking secret values. |
+| POST | `/api/v2/connectivity/connections/:connectionRid/updateSecrets` | Bearer | `api:connectivity-connection-write` | Update REST connection secrets and return 204 on success. |
+{/* docs-gen:end endpoints-connectivity */}
 
 ## Ontology API
 
+{/* docs-gen:begin endpoints-ontologies */}
 | Method | Path | Auth | Required Scope | Description |
 |---|---|---|---|---|
-| GET | `/api/v2/ontologies` | Bearer | `api:ontologies-read` | List ontologies |
-| POST | `/api/v2/ontologies/:ontology/queries/:queryApiName/execute` | Bearer | `api:ontologies-read` | Execute a seeded ontology query |
+| GET | `/api/v2/ontologies` | Bearer | `api:ontologies-read` | List ontologies visible to the current principal. |
+| POST | `/api/v2/ontologies/:ontology/queries/:queryApiName/execute` | Bearer | `api:ontologies-read` | Execute a seeded ontology query by ontology RID or apiName. |
+{/* docs-gen:end endpoints-ontologies */}
 
 ## Compute Module Runtime Routes
 
 These routes are used by the compute module runtime process. All paths are prefixed with `/_emulate/foundry/compute-modules/runtimes`.
 
+{/* docs-gen:begin endpoints-runtime */}
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `/_emulate/foundry/compute-modules/runtimes` | None | Create or reset a runtime session |
-| GET | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/job` | Module-Auth-Token | Poll for the next queued job |
-| POST | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/schemas` | Module-Auth-Token | Post function schemas |
-| POST | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/results/:jobId` | Module-Auth-Token | Post a job result |
-| GET | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/jobs/:jobId` | None | Inspect runtime, job, and schema state |
+| POST | `/_emulate/foundry/compute-modules/runtimes` | None | Create or reset a runtime session. Returns moduleAuthToken and polling URLs. |
+| GET | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/job` | Module-Auth-Token | Poll for the next queued job. Returns 204 if no job is available. |
+| POST | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/schemas` | Module-Auth-Token | Post JSON schemas for compute-module functions. |
+| POST | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/results/:jobId` | Module-Auth-Token | Post raw result body for a completed job. Preserves exact bytes. |
+| GET | `/_emulate/foundry/compute-modules/runtimes/:runtimeId/jobs/:jobId` | None | Inspect a job's state, schemas, and result. |
+{/* docs-gen:end endpoints-runtime */}
 
 ## Compute Module Contour Routes
 
 These routes are used by your application to submit and monitor jobs. All paths are prefixed with `/contour-backend-multiplexer/api/module-group-multiplexer`.
 
+{/* docs-gen:begin endpoints-contour */}
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `.../compute-modules/jobs/execute` | Bearer | Synchronous job execution (blocks until result) |
-| POST | `.../deployed-apps/jobs` | Bearer | Asynchronous job submission |
-| GET | `.../jobs/:jobId/status` | Bearer | Poll job status |
-| PUT | `.../jobs/result/v2` | Bearer | Retrieve result of a completed async job |
+| POST | `.../compute-modules/jobs/execute` | Bearer | Synchronous job execution. Enqueues, waits up to 30 seconds, returns raw result body. |
+| POST | `.../deployed-apps/jobs` | Bearer | Asynchronous job submission. Returns a job handle for status polling. |
+| GET | `.../jobs/:jobId/status` | Bearer | Poll job status. Returns queued, running, succeeded, or failed. |
+| PUT | `.../jobs/result/v2` | Bearer | Fetch completed job result body. Returns raw application/octet-stream. |
+{/* docs-gen:end endpoints-contour */}
 
 ## Authentication Types
 

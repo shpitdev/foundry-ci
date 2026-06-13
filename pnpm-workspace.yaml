@@ -13,3 +13,4 @@ packages:
   - "packages/@emulators/*"
   - "apps/*"
   - "examples/*"
+  - "tools/*"

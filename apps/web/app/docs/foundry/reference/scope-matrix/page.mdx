@@ -4,14 +4,16 @@ This reference maps OAuth scopes to the endpoints they protect.
 
 ## Scope Matrix
 
+{/* docs-gen:begin scope-matrix */}
 | Scope | Endpoint | Effect |
 |---|---|---|
-| `api:admin-read` | `GET /api/v2/admin/users/getCurrent`, `GET /api/v2/admin/enrollments/getCurrent` | Required; returns 403 without it |
-| `api:connectivity-connection-read` | `GET /api/v2/connectivity/connections/*` | Required for reading connections and configurations |
-| `api:connectivity-connection-write` | `POST /api/v2/connectivity/connections*` | Required for creating connections and updating secrets |
-| `api:ontologies-read` | `GET /api/v2/ontologies`, ontology query execute | Required for ontology list and query execution |
+| `api:admin-read` | `GET /api/v2/admin/users/getCurrent`, `GET /api/v2/admin/enrollments/getCurrent` | Required; requests without it return `PERMISSION_DENIED` (403) |
+| `api:connectivity-connection-read` | `GET /api/v2/connectivity/connections/:connectionRid`, `GET /api/v2/connectivity/connections/:connectionRid/getConfiguration` | Required; requests without it return `PERMISSION_DENIED` (403) |
+| `api:connectivity-connection-write` | `POST /api/v2/connectivity/connections`, `POST /api/v2/connectivity/connections/:connectionRid/updateSecrets` | Required; requests without it return `PERMISSION_DENIED` (403) |
+| `api:ontologies-read` | `GET /api/v2/ontologies`, `POST /api/v2/ontologies/:ontology/queries/:queryApiName/execute` | Required; requests without it return `PERMISSION_DENIED` (403) |
 | `api:ontologies-write` | Ontology write endpoints | Stored on token for application-level checks |
 | `offline_access` | `POST /multipass/api/oauth2/token` (authorization_code) | Triggers refresh token issuance |
+{/* docs-gen:end scope-matrix */}
 
 ## Enforcement Levels
 
@@ -21,13 +23,15 @@ The emulator enforces scopes at two levels:
 
 These scopes are checked by the emulator itself and produce errors if missing:
 
+{/* docs-gen:begin enforced-scopes */}
 | Scope | Enforcement |
 |---|---|
-| `api:admin-read` | `getCurrent` and `getCurrent enrollment` return `PERMISSION_DENIED` (403) without this scope |
-| `api:connectivity-connection-read` | Connectivity read routes return `PERMISSION_DENIED` (403) without this scope |
-| `api:connectivity-connection-write` | Connectivity write routes return `PERMISSION_DENIED` (403) without this scope |
-| `api:ontologies-read` | Ontology list and query execution return `PERMISSION_DENIED` (403) without this scope |
+| `api:admin-read` | `GET /api/v2/admin/users/getCurrent`, `GET /api/v2/admin/enrollments/getCurrent` return `PERMISSION_DENIED` (403) without this scope |
+| `api:connectivity-connection-read` | `GET /api/v2/connectivity/connections/:connectionRid`, `GET /api/v2/connectivity/connections/:connectionRid/getConfiguration` return `PERMISSION_DENIED` (403) without this scope |
+| `api:connectivity-connection-write` | `POST /api/v2/connectivity/connections`, `POST /api/v2/connectivity/connections/:connectionRid/updateSecrets` return `PERMISSION_DENIED` (403) without this scope |
+| `api:ontologies-read` | `GET /api/v2/ontologies`, `POST /api/v2/ontologies/:ontology/queries/:queryApiName/execute` return `PERMISSION_DENIED` (403) without this scope |
 | `offline_access` | The token endpoint omits `refresh_token` from the response without this scope |
+{/* docs-gen:end enforced-scopes */}
 
 ### Application-Level Scopes
 

@@ -9,6 +9,8 @@
     "test": "turbo test",
     "clean": "turbo clean",
     "type-check": "turbo type-check",
+    "docs-gen": "turbo docs-gen",
+    "new-page": "pnpm --filter @nyrra/docs-gen new-page",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx}\"",
     "release:emulate:prepare": "pnpm --filter @nyrra/emulate build && node scripts/prepare-emulate-release-package.mjs",

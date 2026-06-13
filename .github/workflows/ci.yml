@@ -16,7 +16,10 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
+      # Full history so turbo --affected can diff against the PR base.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v5
         with:
@@ -24,21 +27,35 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
+
+      # Reuse turbo's local cache across runs (no remote cache configured).
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm format:check
 
-      - run: pnpm type-check
+      # PRs run only the packages affected since the base branch; pushes to
+      # main run the full graph.
+      - name: Build, test, lint, type-check
+        run: >
+          pnpm exec turbo run type-check lint test build build:vinext
+          --cache-dir=.turbo
+          ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+        env:
+          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha || '' }}
 
-      - run: pnpm lint
-
-      - run: pnpm test
-
-      - run: pnpm build
-
-      - run: pnpm --filter web build:vinext
-
-      - run: pnpm --filter web type-check
+      # Regenerate registry-derived docs sections and fail on drift. Runs
+      # unconditionally: hand edits inside generated regions must be caught
+      # even when the registry itself did not change.
+      - name: Docs drift gate
+        run: |
+          pnpm exec turbo run docs-gen --cache-dir=.turbo
+          git diff --exit-code -- apps/web/app/docs

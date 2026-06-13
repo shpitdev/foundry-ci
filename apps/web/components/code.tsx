@@ -1,4 +1,5 @@
-import { codeToHtml } from "shiki";
+import { bundledLanguages, getSingletonHighlighter } from "shiki";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 const vercelDarkTheme = {
   name: "vercel-dark",
@@ -166,19 +167,33 @@ interface CodeProps {
   lang?: string;
 }
 
-export async function Code({ children, lang = "typescript" }: CodeProps) {
-  if (lang === "diff") {
-    return <DiffBlock>{children}</DiffBlock>;
-  }
+// Cloudflare Workers disallow compiling WASM from bytes at runtime, so
+// shiki's default oniguruma engine throws in the deployed worker. The
+// pure-JS regex engine runs under both node (next build) and workerd.
+const jsEngine = createJavaScriptRegexEngine({ forgiving: true });
 
-  const html = await codeToHtml(children.trim(), {
-    lang,
+async function highlight(code: string, lang: string): Promise<string> {
+  const highlighter = await getSingletonHighlighter({ engine: jsEngine });
+  const known = lang in bundledLanguages;
+  if (known) {
+    await highlighter.loadLanguage(bundledLanguages[lang as keyof typeof bundledLanguages]);
+  }
+  return highlighter.codeToHtml(code, {
+    lang: known ? lang : "text",
     themes: {
       light: vercelLightTheme,
       dark: vercelDarkTheme,
     },
     defaultColor: false,
   });
+}
+
+export async function Code({ children, lang = "typescript" }: CodeProps) {
+  if (lang === "diff") {
+    return <DiffBlock>{children}</DiffBlock>;
+  }
+
+  const html = await highlight(children.trim(), lang);
 
   return (
     <div className="my-4 rounded-lg border border-neutral-200 bg-neutral-50 text-[13px] font-mono overflow-hidden dark:border-neutral-800 dark:bg-neutral-900">

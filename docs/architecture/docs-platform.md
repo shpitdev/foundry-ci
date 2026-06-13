@@ -19,13 +19,27 @@ The earlier two-app platform (read-only `apps/web` mirror + deployed `apps/web-s
 | Brand constants | `apps/web/lib/site.ts` (the single rename point: name, owner, URLs, repo, npm package) |
 | Redirects (old URLs) | `apps/web/next.config.mjs` |
 
-Adding or moving a docs page means touching the page.mdx plus the three lib lists and, when a URL changes, the redirects.
+Adding or moving a docs page means touching the page.mdx plus the three lib lists and, when a URL changes, the redirects. `pnpm new-page --slug <path> --title "..." --section "<sidebar section>"` (tools/docs-gen) scaffolds the page from an EJS template and performs the three lib insertions; redirects for moved pages remain manual.
+
+## Generated reference sections
+
+The mechanical tables in `app/docs/foundry/reference/endpoints/page.mdx` and `scope-matrix/page.mdx` are generated from the route registry (`packages/@emulators/foundry/src/route-registry.ts`) by `pnpm docs-gen` (tools/docs-gen). Generated regions are delimited by `{/* docs-gen:begin <region> */}` markers; everything outside the markers is hand-written. Never edit inside the markers: CI regenerates and fails on any diff (the docs drift gate), so route changes must land in the registry and scope semantics in the `SCOPE_OVERRIDES` map in `tools/docs-gen/src/generate.mjs`.
 
 ## Build model
 
 - `pnpm --filter web dev:vinext` / `build:vinext` / `start:vinext` — the deployed path (Vite, outputs `dist/`).
 - `pnpm --filter web build` (`next build`) — upstream's path, kept working for parity; CI runs both.
 - MDX: vinext auto-injects `@mdx-js/rollup` but does not wire the `mdx-components.tsx` convention, so `apps/web/vite.config.ts` registers the plugin explicitly with `providerImportSource: "@/mdx-components"` and `remark-gfm` (the Foundry docs use GFM tables). Without this, every MDX page renders unstyled and unhighlighted. `next.config.mjs` keeps upstream's bare `createMDX()`.
+- Workers runtime: `vite.config.ts` includes `@cloudflare/vite-plugin`, so `dev:vinext` and `build:vinext` run the app in workerd, not node. Two workerd constraints shape the code: shiki uses the pure-JS regex engine (`components/code.tsx`) because Workers forbid compiling WASM at runtime, and `just-bash` is aliased to its full ESM bundle because the Workers resolve conditions would otherwise pick its trimmed browser build, which lacks exports `bash-tool` needs.
+
+## Deployment
+
+The site deploys to the Cloudflare Worker `foundryci-docs` (custom domains foundryci.com + www), configured in `apps/web/wrangler.jsonc` and driven by `.github/workflows/deploy-cloudflare.yml`:
+
+- **Preview**: every PR touching the site runs `pnpm --filter web deploy:preview`, which uploads a worker version aliased `pr-<number>` (URL `https://pr-<n>-foundryci-docs.<subdomain>.workers.dev`) without touching production traffic, then comments the URL on the PR via `scripts/post-cloudflare-deployment-comment.mjs`.
+- **Production**: pushes to main run `pnpm --filter web deploy:production` (`wrangler deploy`), then `apps/web/scripts/ensure-cloudflare-www-dns.mjs` and `ensure-cloudflare-https-settings.mjs` assert the www DNS record and HTTPS redirect settings (the preview job runs both with `--dry-run` as a permissions canary).
+- Secrets: `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` repo secrets.
+- Known limitations on workerd: `/og` image generation 500s (it reads font files from disk and @vercel/og needs WASM), and `/api/docs-chat` deploys but degrades (its runtime fs reads of `app/**/page.mdx` find nothing on the worker, and it needs AI gateway + Upstash secrets configured on the worker). Neither existed on the previously deployed web-svelte site; fixing them properly is follow-up work.
 
 ## Dev tooling
 
