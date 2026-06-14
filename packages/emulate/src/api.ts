@@ -1,7 +1,7 @@
-import { createServer, serve, type AppKeyResolver, type Store } from "@emulators/core";
-import { SERVICE_REGISTRY } from "./registry.js";
-export type { ServiceName } from "./registry.js";
-import type { ServiceName } from "./registry.js";
+import { serve, type AppKeyResolver, type Store } from "@emulators/core";
+import { createServer, SERVICE_REGISTRY, buildDefaultAdminToken } from "./fork-services.js";
+export type { ServiceName } from "./fork-services.js";
+import type { ServiceName } from "./fork-services.js";
 import { resolveBaseUrl } from "./base-url.js";
 
 export interface SeedConfig {
@@ -39,7 +39,7 @@ export async function createEmulator(options: EmulatorOptions): Promise<Emulator
       tokens[token] = { login: user.login, id: tokenId++, scopes: user.scopes };
     }
   } else {
-    tokens["test_token_admin"] = { login: "admin", id: 2, scopes: ["repo", "user", "admin:org", "admin:repo_hook"] };
+    tokens["test_token_admin"] = buildDefaultAdminToken([service]);
   }
 
   const svcSeedConfig = seedConfig?.[service] as Record<string, unknown> | undefined;

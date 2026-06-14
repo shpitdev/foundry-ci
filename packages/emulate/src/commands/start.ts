@@ -1,5 +1,11 @@
-import { createServer, serve, type AppKeyResolver, type Store } from "@emulators/core";
-import { SERVICE_REGISTRY, SERVICE_NAMES, type ServiceName } from "../registry.js";
+import { serve, type AppKeyResolver, type Store } from "@emulators/core";
+import {
+  createServer,
+  SERVICE_REGISTRY,
+  SERVICE_NAMES,
+  buildDefaultAdminToken,
+  type ServiceName,
+} from "../fork-services.js";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { parse as parseYaml } from "yaml";
@@ -111,7 +117,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
       tokens[token] = { login: user.login, id: tokenId++, scopes: user.scopes };
     }
   } else {
-    tokens["test_token_admin"] = { login: "admin", id: 2, scopes: ["repo", "user", "admin:org", "admin:repo_hook"] };
+    tokens["test_token_admin"] = buildDefaultAdminToken(services);
   }
 
   if (options.portless) {

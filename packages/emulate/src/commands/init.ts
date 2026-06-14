@@ -1,7 +1,7 @@
 import { writeFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { stringify as yamlStringify } from "yaml";
-import { SERVICE_REGISTRY, SERVICE_NAMES, DEFAULT_TOKENS, type ServiceName } from "../registry.js";
+import { SERVICE_REGISTRY, SERVICE_NAMES, DEFAULT_TOKENS, type ServiceName } from "../fork-services.js";
 
 interface InitOptions {
   service: string;
