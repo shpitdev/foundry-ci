@@ -5,31 +5,44 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Search } from "@/components/search";
 import { getStarCount } from "@/lib/github";
+import {
+  GITHUB_URL,
+  NPM_URL,
+  SITE_DESCRIPTION,
+  SITE_LOGO,
+  SITE_NAME,
+  SITE_OWNER,
+  SITE_OWNER_URL,
+  SITE_TAGLINE,
+  SITE_URL,
+  UPSTREAM_NAME,
+  UPSTREAM_URL,
+} from "@/lib/site";
 import "./globals.css";
 
+const ROOT_TITLE = `${SITE_NAME} by ${SITE_OWNER} | ${SITE_TAGLINE}`;
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://emulate.dev"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "emulate | Local API Emulation for CI & Sandboxes",
-    template: "%s | emulate",
+    default: ROOT_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "Local drop-in replacement services for CI and no-network sandboxes. Fully stateful, production-fidelity API emulation. Not mocks.",
+  description: SITE_DESCRIPTION,
+  icons: { icon: SITE_LOGO },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://emulate.dev",
-    siteName: "emulate",
-    title: "emulate | Local API Emulation for CI & Sandboxes",
-    description:
-      "Local drop-in replacement services for CI and no-network sandboxes. Fully stateful, production-fidelity API emulation. Not mocks.",
-    images: [{ url: "/og", width: 1200, height: 630, alt: "emulate" }],
+    url: SITE_URL,
+    siteName: `${SITE_NAME} by ${SITE_OWNER}`,
+    title: ROOT_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [{ url: "/og", width: 1200, height: 630, alt: `${SITE_NAME} by ${SITE_OWNER}` }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "emulate | Local API Emulation for CI & Sandboxes",
-    description:
-      "Local drop-in replacement services for CI and no-network sandboxes. Fully stateful, production-fidelity API emulation. Not mocks.",
+    title: ROOT_TITLE,
+    description: SITE_DESCRIPTION,
     images: ["/og"],
   },
 };
@@ -38,28 +51,14 @@ function Header({ stars }: { stars?: string }) {
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm dark:bg-neutral-950/90">
       <div className="flex h-14 items-center justify-between px-4 gap-6">
-        <div className="flex items-center gap-2">
-          <Link href="https://vercel.com" title="Made with love by Vercel">
-            <svg
-              data-testid="geist-icon"
-              height="18"
-              strokeLinejoin="round"
-              viewBox="0 0 16 16"
-              width="18"
-              style={{ color: "currentcolor" }}
-            >
-              <path fillRule="evenodd" clipRule="evenodd" d="M8 1L16 15H0L8 1Z" fill="currentColor" />
-            </svg>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2" aria-label={`${SITE_NAME} home`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={SITE_LOGO} alt="" aria-hidden="true" className="h-[18px] w-[18px]" />
+            <span className={`${GeistPixelSquare.className} text-lg leading-none`}>{SITE_NAME}</span>
           </Link>
-          <span className="text-neutral-300 dark:text-neutral-700">
-            <svg
-              data-testid="geist-icon"
-              height="16"
-              strokeLinejoin="round"
-              viewBox="0 0 16 16"
-              width="16"
-              style={{ color: "currentcolor" }}
-            >
+          <span className="hidden text-neutral-300 sm:inline dark:text-neutral-700" aria-hidden="true">
+            <svg height="14" strokeLinejoin="round" viewBox="0 0 16 16" width="14" style={{ color: "currentcolor" }}>
               <path
                 fillRule="evenodd"
                 clipRule="evenodd"
@@ -68,9 +67,14 @@ function Header({ stars }: { stars?: string }) {
               />
             </svg>
           </span>
-          <Link href="/">
-            <span className={`${GeistPixelSquare.className} text-lg`}>emulate</span>
-          </Link>
+          <a
+            href={SITE_OWNER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden text-xs text-neutral-500 transition-colors hover:text-neutral-900 sm:inline dark:text-neutral-400 dark:hover:text-neutral-100"
+          >
+            by {SITE_OWNER}
+          </a>
         </div>
         <nav className="flex items-center gap-4">
           <Search />
@@ -81,7 +85,7 @@ function Header({ stars }: { stars?: string }) {
             Docs
           </Link>
           <a
-            href="https://github.com/vercel-labs/emulate"
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -92,7 +96,7 @@ function Header({ stars }: { stars?: string }) {
             {stars && <span>{stars}</span>}
           </a>
           <a
-            href="https://www.npmjs.com/package/emulate"
+            href={NPM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -106,6 +110,39 @@ function Header({ stars }: { stars?: string }) {
   );
 }
 
+function Footer() {
+  return (
+    <footer className="border-t border-neutral-200 dark:border-neutral-800">
+      <div className="mx-auto flex max-w-5xl flex-col gap-2 px-6 py-6 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between dark:text-neutral-500">
+        <div>
+          Built on{" "}
+          <a
+            href={UPSTREAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
+          >
+            {UPSTREAM_NAME}
+          </a>
+          .
+        </div>
+        <div>
+          A{" "}
+          <a
+            href={SITE_OWNER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
+          >
+            {SITE_OWNER}
+          </a>{" "}
+          project.
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const stars = await getStarCount();
 
@@ -115,6 +152,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ThemeProvider>
           <Header stars={stars} />
           {children}
+          <Footer />
         </ThemeProvider>
       </body>
     </html>

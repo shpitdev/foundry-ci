@@ -3,44 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavSection = {
-  title?: string;
-  items: { href: string; label: string }[];
-};
-
-const sections: NavSection[] = [
-  {
-    items: [
-      { href: "/docs", label: "Getting Started" },
-      { href: "/docs/programmatic-api", label: "Programmatic API" },
-      { href: "/docs/configuration", label: "Configuration" },
-      { href: "/docs/nextjs", label: "Next.js Integration" },
-    ],
-  },
-  {
-    title: "Services",
-    items: [
-      { href: "/docs/vercel", label: "Vercel" },
-      { href: "/docs/github", label: "GitHub" },
-      { href: "/docs/google", label: "Google" },
-      { href: "/docs/slack", label: "Slack" },
-      { href: "/docs/apple", label: "Apple" },
-      { href: "/docs/microsoft", label: "Microsoft Entra ID" },
-      { href: "/docs/aws", label: "AWS" },
-      { href: "/docs/okta", label: "Okta" },
-      { href: "/docs/mongoatlas", label: "MongoDB Atlas" },
-      { href: "/docs/resend", label: "Resend" },
-      { href: "/docs/stripe", label: "Stripe" },
-    ],
-  },
-  {
-    title: "Reference",
-    items: [
-      { href: "/docs/authentication", label: "Authentication" },
-      { href: "/docs/architecture", label: "Architecture" },
-    ],
-  },
-];
+import { docsSections as sections } from "@/lib/docs-sections";
 
 function Sidebar() {
   const pathname = usePathname();

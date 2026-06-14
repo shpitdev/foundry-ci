@@ -13,6 +13,7 @@ import { DefaultChatTransport } from "ai";
 import { Streamdown } from "streamdown";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { SITE_NAME } from "@/lib/site";
 
 const STORAGE_KEY = "docs-chat-messages";
 const transport = new DefaultChatTransport({ api: "/api/docs-chat" });
@@ -123,10 +124,10 @@ function ToolCallDisplay({
 }
 
 const SUGGESTIONS = [
-  "What is emulate?",
-  "How do I start the server?",
-  "What GitHub APIs are supported?",
+  `What is ${SITE_NAME}?`,
+  "How do I start the Foundry emulator?",
   "How do I configure OAuth?",
+  "What GitHub APIs are supported?",
   "What's the architecture?",
 ];
 
@@ -316,7 +317,7 @@ export function DocsChat({
   const chatPanel = (
     <>
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
-        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">emulate docs</span>
+        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{SITE_NAME} docs</span>
         <div className="flex items-center gap-3">
           {showMessages && (
             <button
@@ -496,6 +497,7 @@ export function DocsChat({
           <SheetContent
             side="right"
             showCloseButton={false}
+            aria-describedby={undefined}
             overlayClassName="bg-white! dark:bg-neutral-950!"
             className="inset-0! w-full! h-full! max-w-none! p-0! flex flex-col"
             style={{ backgroundColor: "inherit", opacity: 1 }}

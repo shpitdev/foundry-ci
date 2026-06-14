@@ -1,23 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { NPM_PACKAGE } from "@/lib/site";
 
+// Ports are assigned in the order passed to --service, so Foundry stays on
+// the base port. The CLI banner name ("emulate") is the bin name, which is
+// stable across site renames.
 const services = [
-  { name: "Vercel", port: 4000, slug: "vercel" },
+  { name: "Foundry", port: 4000, slug: "foundry" },
   { name: "GitHub", port: 4001, slug: "github" },
-  { name: "Google", port: 4002, slug: "google" },
-  { name: "Slack", port: 4003, slug: "slack" },
-  { name: "Apple", port: 4004, slug: "apple" },
-  { name: "Microsoft", port: 4005, slug: "microsoft" },
-  { name: "AWS", port: 4006, slug: "aws" },
-  { name: "Okta", port: 4007, slug: "okta" },
-  { name: "MongoDB Atlas", port: 4008, slug: "mongoatlas" },
-  { name: "Resend", port: 4009, slug: "resend" },
-  { name: "Stripe", port: 4010, slug: "stripe" },
+  { name: "Slack", port: 4002, slug: "slack" },
+  { name: "Stripe", port: 4003, slug: "stripe" },
 ];
 
+const CLI_VERSION = "v0.6.0";
+
 export function HeroTerminal({ pixelFont }: { pixelFont: string }) {
-  const [portless, setPortless] = useState(true);
+  const [portless, setPortless] = useState(false);
 
   return (
     <div className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-950 shadow-lg dark:border-neutral-800">
@@ -55,10 +54,12 @@ export function HeroTerminal({ pixelFont }: { pixelFont: string }) {
       <pre className="overflow-x-auto p-5 text-[13px] leading-relaxed text-neutral-400 font-mono">
         <code>
           <span className="text-neutral-500">$</span>{" "}
-          <span className="text-neutral-200">npx emulate{portless ? " --portless" : ""}</span>
+          <span className="text-neutral-200">
+            npx {NPM_PACKAGE} --service foundry,github,slack,stripe{portless ? " --portless" : ""}
+          </span>
           {"\n\n"}
           <span className={`${pixelFont} text-neutral-200`}>emulate</span>
-          {" v0.4.1\n\n"}
+          {` ${CLI_VERSION}\n\n`}
           {services.map((s) => (
             <span key={s.name}>
               {"  "}
