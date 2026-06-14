@@ -8,7 +8,7 @@ export function adminRoutes({ app, store }: RouteContext): void {
   const fs = getFoundryStore(store);
 
   app.get("/api/v2/admin/users/getCurrent", requireAuth(), (c) => {
-    const authUser = c.get("authUser");
+    const authUser = c.get("authUser")!;
     const authScopes = c.get("authScopes");
 
     if (!hasScope(authScopes, "api:admin-read")) {

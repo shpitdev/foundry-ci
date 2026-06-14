@@ -13,7 +13,7 @@ const services = [
   { name: "Stripe", port: 4003, slug: "stripe" },
 ];
 
-const CLI_VERSION = "v0.6.0";
+const CLI_VERSION = "v0.6.1";
 
 export function HeroTerminal({ pixelFont }: { pixelFont: string }) {
   const [portless, setPortless] = useState(false);
