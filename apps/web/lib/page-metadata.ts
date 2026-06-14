@@ -1,48 +1,40 @@
 import type { Metadata } from "next";
 import { PAGE_TITLES } from "./page-titles";
-import {
-  OG_IMAGE_HEIGHT,
-  OG_IMAGE_WIDTH,
-  OG_LOCALE,
-  OG_TYPE,
-  PAGE_SITE_DESCRIPTION,
-  ROOT_OG_IMAGE_URL,
-  SITE_NAME,
-  TWITTER_CARD,
-  ogImageAlt,
-  suffixWithSiteName,
-} from "./site-metadata";
+import { SITE_NAME } from "./site";
+
+const DESCRIPTION =
+  "Local drop-in replacement services for CI and no-network sandboxes. Fully stateful, production-fidelity API emulation.";
 
 export function pageMetadata(slug: string): Metadata {
   const title = PAGE_TITLES[slug];
   if (!title) return {};
 
   const displayTitle = title.replace(/\n/g, " ");
-  const fullTitle = suffixWithSiteName(displayTitle);
-  const ogImageUrl = slug ? `/og/${slug}` : ROOT_OG_IMAGE_URL;
+  const fullTitle = `${displayTitle} | ${SITE_NAME}`;
+  const ogImageUrl = slug ? `/og/${slug}` : "/og";
 
   return {
     title: displayTitle,
-    description: PAGE_SITE_DESCRIPTION,
+    description: DESCRIPTION,
     openGraph: {
-      type: OG_TYPE,
-      locale: OG_LOCALE,
+      type: "website",
+      locale: "en_US",
       siteName: SITE_NAME,
       title: fullTitle,
-      description: PAGE_SITE_DESCRIPTION,
+      description: DESCRIPTION,
       images: [
         {
           url: ogImageUrl,
-          width: OG_IMAGE_WIDTH,
-          height: OG_IMAGE_HEIGHT,
-          alt: ogImageAlt(displayTitle),
+          width: 1200,
+          height: 630,
+          alt: `${displayTitle} - ${SITE_NAME}`,
         },
       ],
     },
     twitter: {
-      card: TWITTER_CARD,
+      card: "summary_large_image",
       title: fullTitle,
-      description: PAGE_SITE_DESCRIPTION,
+      description: DESCRIPTION,
       images: [ogImageUrl],
     },
   };

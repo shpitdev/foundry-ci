@@ -1,10 +1,17 @@
-import { createServer, type AppKeyResolver, type Store } from "@emulators/core";
-import { DEFAULT_SERVICE_NAMES, SERVICE_REGISTRY, SERVICE_NAMES, type ServiceName } from "../registry.js";
-import { createAdaptorServer } from "@hono/node-server";
+import { serve, type AppKeyResolver, type Store } from "@emulators/core";
+import {
+  createServer,
+  SERVICE_REGISTRY,
+  SERVICE_NAMES,
+  buildDefaultAdminToken,
+  type ServiceName,
+} from "../fork-services.js";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { parse as parseYaml } from "yaml";
 import pc from "picocolors";
+import { ensurePortless, registerAliases, removeAliases, portlessBaseUrl, type PortlessAlias } from "../portless.js";
+import { resolveBaseUrl } from "../base-url.js";
 
 declare const PKG_VERSION: string;
 const pkg = { version: PKG_VERSION };
@@ -13,6 +20,8 @@ export interface StartOptions {
   port: number;
   service?: string;
   seed?: string;
+  baseUrl?: string;
+  portless?: boolean;
 }
 
 interface SeedConfig {
@@ -73,50 +82,13 @@ function inferServicesFromConfig(config: SeedConfig): ServiceName[] | null {
   return found.length > 0 ? [...found] : null;
 }
 
-type HttpServer = ReturnType<typeof createAdaptorServer>;
-type NodeServerFetch = Parameters<typeof createAdaptorServer>[0]["fetch"];
-
-export function buildPortInUseMessage(service: string, port: number, usesCustomPort: boolean): string {
-  if (usesCustomPort) {
-    return `Port ${port} is already in use for ${service}. Free that port or change ${service}.port in your seed config.`;
-  }
-
-  return `Port ${port} is already in use for ${service}. Free that port or choose a different base port with --port.`;
-}
-
-async function startHttpServer(
-  appFetch: NodeServerFetch,
-  port: number,
-  service: string,
-  usesCustomPort: boolean,
-): Promise<HttpServer> {
-  return await new Promise((resolve, reject) => {
-    const server = createAdaptorServer({ fetch: appFetch });
-
-    const handleListening = () => {
-      server.off("error", handleError);
-      resolve(server);
-    };
-
-    const handleError = (error: NodeJS.ErrnoException) => {
-      server.off("listening", handleListening);
-
-      if (error.code === "EADDRINUSE") {
-        reject(new Error(buildPortInUseMessage(service, port, usesCustomPort)));
-        return;
-      }
-
-      reject(new Error(`Failed to start ${service} on port ${port}: ${error.message}`));
-    };
-
-    server.once("listening", handleListening);
-    server.once("error", handleError);
-    server.listen(port);
-  });
-}
-
 export async function startCommand(options: StartOptions): Promise<void> {
   const { port: basePort } = options;
+
+  if (options.portless && options.baseUrl) {
+    console.error("--portless and --base-url are mutually exclusive.");
+    process.exit(1);
+  }
 
   const loaded = loadSeedConfig(options.seed);
   const seedConfig = loaded?.config ?? null;
@@ -126,14 +98,14 @@ export async function startCommand(options: StartOptions): Promise<void> {
   if (options.service) {
     services = options.service.split(",").map((s) => s.trim()) as ServiceName[];
   } else if (seedConfig) {
-    services = inferServicesFromConfig(seedConfig) ?? [...DEFAULT_SERVICE_NAMES];
+    services = inferServicesFromConfig(seedConfig) ?? [...SERVICE_NAMES];
   } else {
-    services = [...DEFAULT_SERVICE_NAMES];
+    services = [...SERVICE_NAMES];
   }
 
   for (const svc of services) {
     if (!SERVICE_REGISTRY[svc]) {
-      console.error(`Unknown service: ${svc}. Available: ${SERVICE_NAMES.join(", ")}`);
+      console.error(`Unknown service: ${svc}`);
       process.exit(1);
     }
   }
@@ -145,66 +117,93 @@ export async function startCommand(options: StartOptions): Promise<void> {
       tokens[token] = { login: user.login, id: tokenId++, scopes: user.scopes };
     }
   } else {
-    tokens["test_token_admin"] = {
-      login: "admin",
-      id: 2,
-      scopes: ["repo", "user", "admin:org", "admin:repo_hook", "api:admin-read"],
-    };
+    tokens["test_token_admin"] = buildDefaultAdminToken(services);
+  }
+
+  if (options.portless) {
+    await ensurePortless();
+  }
+
+  interface PreparedService {
+    svc: ServiceName;
+    entry: (typeof SERVICE_REGISTRY)[ServiceName];
+    loadedSvc: Awaited<ReturnType<(typeof SERVICE_REGISTRY)[ServiceName]["load"]>>;
+    svcSeedConfig: Record<string, unknown> | undefined;
+    port: number;
+    baseUrl: string;
+  }
+
+  const portlessAliases: PortlessAlias[] = [];
+  const prepared: PreparedService[] = [];
+
+  for (let i = 0; i < services.length; i++) {
+    const svc = services[i];
+    const entry = SERVICE_REGISTRY[svc];
+    const loadedSvc = await entry.load();
+
+    const svcSeedConfig = seedConfig?.[svc] as Record<string, unknown> | undefined;
+    const port = (svcSeedConfig?.port as number | undefined) ?? basePort + i;
+
+    if (options.portless) {
+      portlessAliases.push({ name: `${svc}.emulate`, port });
+    }
+
+    const seedBaseUrl =
+      typeof svcSeedConfig?.baseUrl === "string" && svcSeedConfig.baseUrl.length > 0
+        ? svcSeedConfig.baseUrl
+        : undefined;
+    const effectiveBaseUrl = options.portless ? portlessBaseUrl(svc) : options.baseUrl;
+    const baseUrl = resolveBaseUrl({ service: svc, port, baseUrl: effectiveBaseUrl, seedBaseUrl });
+
+    prepared.push({ svc, entry, loadedSvc, svcSeedConfig, port, baseUrl });
+  }
+
+  if (portlessAliases.length > 0) {
+    registerAliases(portlessAliases);
   }
 
   const serviceUrls: Array<{ name: string; url: string }> = [];
   const stores: Store[] = [];
-  const httpServers: HttpServer[] = [];
+  const httpServers: ReturnType<typeof serve>[] = [];
 
-  try {
-    for (let i = 0; i < services.length; i++) {
-      const svc = services[i];
-      const entry = SERVICE_REGISTRY[svc];
-      const loadedSvc = await entry.load();
+  for (const { svc, entry, loadedSvc, svcSeedConfig, port, baseUrl } of prepared) {
+    serviceUrls.push({ name: svc, url: baseUrl });
 
-      const svcSeedConfig = seedConfig?.[svc] as Record<string, unknown> | undefined;
-      const usesCustomPort = typeof svcSeedConfig?.port === "number";
-      const port = (svcSeedConfig?.port as number | undefined) ?? basePort + i;
-      const baseUrl = `http://localhost:${port}`;
-      serviceUrls.push({ name: svc, url: baseUrl });
+    // eslint-disable-next-line prefer-const -- reassigned after closure captures it
+    let cachedResolver: AppKeyResolver | undefined;
+    const appKeyResolver: AppKeyResolver | undefined = loadedSvc.createAppKeyResolver
+      ? (appId) => cachedResolver!(appId)
+      : undefined;
 
-      // eslint-disable-next-line prefer-const -- reassigned after closure captures it
-      let cachedResolver: AppKeyResolver | undefined;
-      const appKeyResolver: AppKeyResolver | undefined = loadedSvc.createAppKeyResolver
-        ? (appId) => cachedResolver!(appId)
-        : undefined;
+    const fallbackUser = entry.defaultFallback(svcSeedConfig);
 
-      const fallbackUser = entry.defaultFallback(svcSeedConfig);
+    const { app, store, webhooks } = createServer(loadedSvc.plugin, {
+      port,
+      baseUrl,
+      tokens,
+      appKeyResolver,
+      fallbackUser,
+    });
+    cachedResolver = loadedSvc.createAppKeyResolver?.(store);
+    stores.push(store);
 
-      const { app, store } = createServer(loadedSvc.plugin, { port, baseUrl, tokens, appKeyResolver, fallbackUser });
-      cachedResolver = loadedSvc.createAppKeyResolver?.(store);
-      stores.push(store);
+    loadedSvc.plugin.seed?.(store, baseUrl);
 
-      loadedSvc.plugin.seed?.(store, baseUrl);
-
-      if (svcSeedConfig && loadedSvc.seedFromConfig) {
-        loadedSvc.seedFromConfig(store, baseUrl, svcSeedConfig);
-      }
-
-      const httpServer = await startHttpServer(app.fetch, port, svc, usesCustomPort);
-      httpServers.push(httpServer);
-    }
-  } catch (error) {
-    for (const srv of httpServers) {
-      srv.close();
-    }
-    for (const store of stores) {
-      store.reset();
+    if (svcSeedConfig && loadedSvc.seedFromConfig) {
+      loadedSvc.seedFromConfig(store, baseUrl, svcSeedConfig, webhooks);
     }
 
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    const httpServer = serve({ fetch: app.fetch, port });
+    httpServers.push(httpServer);
   }
 
-  printBanner(serviceUrls, tokens, configSource, seedConfig);
+  printBanner(serviceUrls, tokens, configSource);
 
   const shutdown = () => {
     console.log(`\n${pc.dim("Shutting down...")}`);
+    if (portlessAliases.length > 0) {
+      removeAliases(portlessAliases);
+    }
     for (const store of stores) {
       store.reset();
     }
@@ -221,7 +220,6 @@ function printBanner(
   services: Array<{ name: string; url: string }>,
   tokens: Record<string, { login: string; id: number; scopes?: string[] }>,
   configSource: string | null,
-  seedConfig: SeedConfig | null,
 ): void {
   const lines: string[] = [];
   lines.push("");
@@ -246,69 +244,9 @@ function printBanner(
   if (configSource) {
     lines.push(`  ${pc.dim("Config:")} ${configSource}`);
   } else {
-    lines.push(`  ${pc.dim("Config:")} defaults ${pc.dim("(run")} emulate init ${pc.dim("to customize)")}`);
+    lines.push(`  ${pc.dim("Config:")} defaults ${pc.dim("(run")} npx emulate init ${pc.dim("to customize)")}`);
   }
-
-  const quickStartLines = buildQuickStartLines(services, tokens, seedConfig);
-  if (quickStartLines.length > 0) {
-    lines.push("");
-    lines.push(...quickStartLines);
-  }
-
   lines.push("");
 
   console.log(lines.join("\n"));
-}
-
-export function buildQuickStartLines(
-  services: Array<{ name: string; url: string }>,
-  tokens: Record<string, { login: string; id: number; scopes?: string[] }>,
-  seedConfig: SeedConfig | null,
-): string[] {
-  const foundry = services.find((service) => service.name === "foundry");
-  if (!foundry) return [];
-
-  const foundrySeed = seedConfig?.foundry as
-    | {
-        oauth_clients?: Array<{
-          client_id?: string;
-          redirect_uris?: string[];
-          allowed_scopes?: string[];
-        }>;
-      }
-    | undefined;
-  const firstClient = foundrySeed?.oauth_clients?.[0];
-  const clientId = firstClient?.client_id ?? "foundry-local";
-  const redirectUri = firstClient?.redirect_uris?.[0] ?? "http://localhost:3000/callback";
-  const scope = firstClient?.allowed_scopes?.includes("api:admin-read")
-    ? "api:admin-read"
-    : (firstClient?.allowed_scopes?.[0] ?? "api:admin-read");
-  const tokenEntries = Object.entries(tokens);
-  const anyTokenName = tokenEntries[0]?.[0] ?? null;
-  const adminReadTokenName =
-    tokenEntries.find(([, token]) => (token.scopes ?? []).includes("api:admin-read"))?.[0] ?? null;
-
-  const authorizeUrl = new URL(`${foundry.url}/multipass/api/oauth2/authorize`);
-  authorizeUrl.searchParams.set("client_id", clientId);
-  authorizeUrl.searchParams.set("redirect_uri", redirectUri);
-  authorizeUrl.searchParams.set("response_type", "code");
-  authorizeUrl.searchParams.set("scope", scope);
-
-  const lines = [`  ${pc.dim("Quick start")}`, `  ${pc.dim("authorize")} ${authorizeUrl.toString()}`];
-
-  if (anyTokenName) {
-    lines.push(`  ${pc.dim("me")} curl -H \"Authorization: Bearer ${anyTokenName}\" ${foundry.url}/multipass/api/me`);
-  }
-
-  if (adminReadTokenName) {
-    lines.push(
-      `  ${pc.dim("current user")} curl -H \"Authorization: Bearer ${adminReadTokenName}\" ${foundry.url}/api/v2/admin/users/getCurrent`,
-    );
-  } else {
-    lines.push(
-      `  ${pc.dim("current user")} requires a token with api:admin-read. Use the authorize URL above or add one in your seed config.`,
-    );
-  }
-
-  return lines;
 }

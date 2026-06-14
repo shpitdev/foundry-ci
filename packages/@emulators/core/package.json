@@ -1,6 +1,6 @@
 {
   "name": "@emulators/core",
-  "version": "0.4.1",
+  "version": "0.6.1",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,7 +35,6 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "hono": "^4",
     "jose": "^6.2.2"
   },
   "devDependencies": {

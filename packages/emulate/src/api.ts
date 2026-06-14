@@ -1,8 +1,8 @@
-import { createServer, type AppKeyResolver, type Store } from "@emulators/core";
-import { SERVICE_REGISTRY } from "./registry.js";
-export type { ServiceName } from "./registry.js";
-import type { ServiceName } from "./registry.js";
-import { serve } from "@hono/node-server";
+import { serve, type AppKeyResolver, type Store } from "@emulators/core";
+import { createServer, SERVICE_REGISTRY, buildDefaultAdminToken } from "./fork-services.js";
+export type { ServiceName } from "./fork-services.js";
+import type { ServiceName } from "./fork-services.js";
+import { resolveBaseUrl } from "./base-url.js";
 
 export interface SeedConfig {
   tokens?: Record<string, { login: string; scopes?: string[] }>;
@@ -13,6 +13,7 @@ export interface EmulatorOptions {
   service: ServiceName;
   port?: number;
   seed?: SeedConfig;
+  baseUrl?: string;
 }
 
 export interface Emulator {
@@ -38,10 +39,13 @@ export async function createEmulator(options: EmulatorOptions): Promise<Emulator
       tokens[token] = { login: user.login, id: tokenId++, scopes: user.scopes };
     }
   } else {
-    tokens["test_token_admin"] = { login: "admin", id: 2, scopes: ["repo", "user", "admin:org", "admin:repo_hook"] };
+    tokens["test_token_admin"] = buildDefaultAdminToken([service]);
   }
 
-  const baseUrl = `http://localhost:${port}`;
+  const svcSeedConfig = seedConfig?.[service] as Record<string, unknown> | undefined;
+  const seedBaseUrl =
+    typeof svcSeedConfig?.baseUrl === "string" && svcSeedConfig.baseUrl.length > 0 ? svcSeedConfig.baseUrl : undefined;
+  const baseUrl = resolveBaseUrl({ service, port, baseUrl: options.baseUrl, seedBaseUrl });
 
   // eslint-disable-next-line prefer-const -- reassigned after closure captures it
   let cachedResolver: AppKeyResolver | undefined;
@@ -49,16 +53,15 @@ export async function createEmulator(options: EmulatorOptions): Promise<Emulator
     ? (appId) => cachedResolver!(appId)
     : undefined;
 
-  const svcSeedConfig = seedConfig?.[service] as Record<string, unknown> | undefined;
   const fallbackUser = entry.defaultFallback(svcSeedConfig);
 
-  const { app, store } = createServer(loaded.plugin, { port, baseUrl, tokens, appKeyResolver, fallbackUser });
+  const { app, store, webhooks } = createServer(loaded.plugin, { port, baseUrl, tokens, appKeyResolver, fallbackUser });
   cachedResolver = loaded.createAppKeyResolver?.(store);
 
   const seed = () => {
     loaded.plugin.seed?.(store, baseUrl);
     if (svcSeedConfig && loaded.seedFromConfig) {
-      loaded.seedFromConfig(store, baseUrl, svcSeedConfig);
+      loaded.seedFromConfig(store, baseUrl, svcSeedConfig, webhooks);
     }
   };
   seed();

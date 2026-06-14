@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import type { Hono } from "hono";
+import type { Hono } from "@emulators/core";
 import type { TokenMap } from "@emulators/core";
 import { createFoundryTestApp, base, authHeader } from "./test-helpers.js";
 

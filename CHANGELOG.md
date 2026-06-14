@@ -1,16 +1,74 @@
 # Changelog
 
+<!-- release:start -->
+## 0.6.1
+
+### New Features
+
+- **Vercel Blob emulator** — local emulation for Vercel Blob store operations, including uploads, downloads, listings, deletes, copy support, and inspector visibility (#175)
+
+### Improvements
+
+- **Vercel Blob examples** — added and hardened an example app that exercises upload sharing URL handling
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
+## 0.6.0
+
+### New Features
+
+- **Expanded Slack emulator support** — stateful Slack writes for rich chat messages, updates, deletes, permalinks, ephemeral and scheduled messages, conversations and DMs, OAuth installs and scopes, user profiles and presence, modern file uploads, pins and bookmarks, App Home views, modals, inspector tabs, event delivery visibility, docs, and coverage matrix (#152-#164)
+
+### Improvements
+
+- **Slack SDK coverage** — added Slack WebClient conformance tests and route coverage for the supported Slack Web API surface (#152-#164)
+- **Slack docs** — audited README, package docs, web docs, skill guidance, CLI seed output, strict scope notes, and unsupported Slack families against the implemented surface (#164)
+
+### Contributors
+
+- @ctate
+
+## 0.5.0
+
+### New Features
+
+- **Clerk emulator** — local emulation of Clerk authentication and session management (#38)
+- **Portless integration** — embed emulators directly in your app without dedicated ports, with base URL override support (#78)
+- **Google `hd` claim** — hosted domain claim in ID tokens and userinfo for Google OAuth (#73)
+- **Stripe Checkout example** — full working example of Stripe Checkout with the Stripe emulator (#82)
+- **Resend magic link example** — working example of Resend magic link authentication flow (#51)
+- **Docs landing page** — new landing page for the docs site (#81)
+
+### Improvements
+
+- **Unified UI design system** — all emulator UIs now share a consistent design system with CI quality checks (#50)
+- **Stripe** — added customer sessions and payment methods API (#47)
+
+### Bug Fixes
+
+- Fixed **AWS S3** emulator compatibility with the official AWS SDK wire format (#65, #69)
+- Fixed **Resend** email inbox links not being clickable in preview (#80)
+
+### Contributors
+
+- @ctate
+- @disintegrator
+- @jlucaso1
+- @Railly
+- @tmm
+
 ## 0.4.1
 
-<!-- release:start -->
 ### Bug Fixes
 
 - Include README in all `@emulators/*` npm packages
-<!-- release:end -->
 
 ## 0.4.0
 
-<!-- release:start -->
 ### New Features
 
 - **Next.js adapter** — embed emulators directly in your Next.js app via `@emulators/adapter-next`, solving the Vercel preview deployment problem where OAuth callback URLs change with every deployment (#43)
@@ -33,4 +91,3 @@
 - @ctate
 - @jk4235
 - @mvanhorn
-<!-- release:end -->

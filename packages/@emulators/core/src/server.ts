@@ -1,5 +1,4 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
+import { Hono, cors } from "./http.js";
 import { Store } from "./store.js";
 import { WebhookDispatcher } from "./webhooks.js";
 import { createApiErrorHandler, createErrorHandler } from "./middleware/error-handler.js";
@@ -22,12 +21,6 @@ export interface ServerOptions {
   fallbackUser?: AuthFallback;
 }
 
-const DOCS_BASE_URL = "https://foundryci.com";
-
-function defaultDocsUrlForService(serviceName: string): string {
-  return `${DOCS_BASE_URL}/${serviceName}`;
-}
-
 export function createServer(plugin: ServicePlugin, options: ServerOptions = {}) {
   const port = options.port ?? 4000;
   const baseUrl = options.baseUrl ?? `http://localhost:${port}`;
@@ -47,7 +40,7 @@ export function createServer(plugin: ServicePlugin, options: ServerOptions = {})
     }
   }
 
-  const docsUrl = options.docsUrl ?? defaultDocsUrlForService(plugin.name);
+  const docsUrl = options.docsUrl ?? `https://emulate.dev/${plugin.name}`;
 
   registerFontRoutes(app);
 

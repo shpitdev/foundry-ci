@@ -1,5 +1,4 @@
-import { Hono } from "hono";
-import { Store, WebhookDispatcher, authMiddleware, type TokenMap } from "@emulators/core";
+import { Hono, Store, WebhookDispatcher, authMiddleware, type TokenMap } from "@emulators/core";
 import { foundryPlugin, seedFromConfig, type FoundrySeedConfig } from "../index.js";
 
 export const base = "http://localhost:4000";

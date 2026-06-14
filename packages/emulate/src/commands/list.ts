@@ -1,4 +1,4 @@
-import { SERVICE_REGISTRY } from "../registry.js";
+import { SERVICE_REGISTRY } from "../fork-services.js";
 
 export function listCommand(): void {
   console.log("\nAvailable services:\n");

@@ -1,169 +1,152 @@
-name: Release npm package
+name: Release
 
 on:
   push:
-    branches: [main]
-    paths:
-      - ".github/workflows/release.yml"
-      - "LICENSE"
-      - "README.md"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "turbo.json"
-      - "eslint.config.mjs"
-      - "packages/emulate/**"
-      - "packages/@emulators/**"
-      - "scripts/prepare-emulate-release-package.mjs"
-      - "scripts/resolve-next-prerelease-version.mjs"
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      dry-run:
-        description: Preview the stable release without publishing
-        default: false
-        required: true
-        type: boolean
-
-permissions:
-  actions: read
-  contents: write
-  id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}-${{ github.event_name }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
+env:
+  EMULATOR_PACKAGES: adapter-next apple aws clerk core github google microsoft mongoatlas okta resend slack stripe vercel
+
 jobs:
-  release:
-    if: github.ref == 'refs/heads/main' && (github.event_name != 'push' || github.actor != 'github-actions[bot]')
+  check-release:
+    name: Check for new version
     runs-on: ubuntu-latest
-    env:
-      CI: true
-      NPM_CONFIG_PROVENANCE: "true"
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
     steps:
-      - name: 01-checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: 02-setup-pnpm
-        uses: pnpm/action-setup@v5
-        with:
-          version: 10.11.0
+      - name: Compare versions to registry
+        id: check
+        run: |
+          LOCAL_VERSION=$(node -p "require('./packages/emulate/package.json').version")
+          SHOULD_RELEASE=false
 
-      - name: 03-setup-node
-        uses: actions/setup-node@v5
+          REGISTRY_VERSION=$(npm view emulate version 2>/dev/null || echo "0.0.0")
+          echo "emulate — local: $LOCAL_VERSION, registry: $REGISTRY_VERSION"
+          if [ "$LOCAL_VERSION" != "$REGISTRY_VERSION" ]; then
+            SHOULD_RELEASE=true
+          fi
+
+          for pkg in $EMULATOR_PACKAGES; do
+            REGISTRY_VERSION=$(npm view "@emulators/$pkg" version 2>/dev/null || echo "0.0.0")
+            echo "@emulators/$pkg — local: $LOCAL_VERSION, registry: $REGISTRY_VERSION"
+            if [ "$LOCAL_VERSION" != "$REGISTRY_VERSION" ]; then
+              SHOULD_RELEASE=true
+            fi
+          done
+
+          echo "should_release=$SHOULD_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "version=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment: Release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: "24"
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
-      - name: 04-install-deps
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: 05-verify-workspace
+      - name: Build
+        run: pnpm build
+
+      - name: Publish packages
         run: |
-          pnpm format:check
-          pnpm type-check
-          pnpm lint
-          pnpm test
+          LOCAL_VERSION="${{ needs.check-release.outputs.version }}"
+          FAILED=""
 
-      - name: 06-release
-        env:
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run || 'false' }}
-        run: |
-          set -euo pipefail
-
-          set_package_version() {
-            local version="$1"
-            node -e "const fs=require('node:fs'); const path='packages/emulate/package.json'; const version=process.argv[1]; const pkg=JSON.parse(fs.readFileSync(path,'utf8')); pkg.version=version; fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');" "$version"
-          }
-
-          ensure_push_prerelease_is_safe() {
-            local manifest_version
-            local latest_version
-
-            manifest_version=$(node -p "require('./packages/emulate/package.json').version")
-            latest_version=$(npm view @nyrra/emulate dist-tags.latest --json --registry=https://registry.npmjs.org 2>/dev/null | tr -d '"')
-
-            if [[ -z "${latest_version}" || "${latest_version}" == "null" ]]; then
+          # pnpm pack resolves workspace:* protocols in the tarball;
+          # npm publish handles OIDC trusted-publisher auth.
+          publish_pkg() {
+            local dir="$1" name="$2"
+            REGISTRY_VERSION=$(npm view "$name" version 2>/dev/null || echo "0.0.0")
+            if [ "$LOCAL_VERSION" = "$REGISTRY_VERSION" ]; then
+              echo "$name@$LOCAL_VERSION already published, skipping"
               return 0
             fi
-
-            node -e 'const [manifestVersion, latestVersion] = process.argv.slice(1); const parseStable = (version) => { const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version); if (!match) throw new Error(`Expected a stable x.y.z version, but received "${version}".`); return match.slice(1).map(Number); }; const compare = (a, b) => { for (let i = 0; i < a.length; i++) { if (a[i] > b[i]) return 1; if (a[i] < b[i]) return -1; } return 0; }; const relation = compare(parseStable(manifestVersion), parseStable(latestVersion)); if (relation < 0) { console.error(`Stable manifest ${manifestVersion} is behind npm latest ${latestVersion}.`); process.exit(1); } if (relation > 0) { console.log(`Stable manifest ${manifestVersion} is ahead of npm latest ${latestVersion}; skipping next prerelease publish on this push.`); process.exit(2); }' "$manifest_version" "$latest_version"
+            echo "Publishing $name@$LOCAL_VERSION..."
+            TARBALL=$(cd "$dir" && pnpm pack --pack-destination /tmp | tail -1)
+            if ! npm publish "$TARBALL" --provenance --access public; then
+              FAILED="$FAILED $name"
+            fi
           }
 
-          prepare_release_dir() {
-            pnpm --filter @nyrra/emulate build
-            node scripts/prepare-emulate-release-package.mjs
-          }
+          publish_pkg packages/emulate emulate
 
-          publish_release_dir() {
-            local release_dir="packages/emulate/.release"
-            local dist_tag="$1"
-            local package_name
-            local package_version
-            local current_tag_version
+          for pkg in $EMULATOR_PACKAGES; do
+            publish_pkg "packages/@emulators/$pkg" "@emulators/$pkg"
+          done
 
-            package_name=$(node -p "require('./${release_dir}/package.json').name")
-            package_version=$(node -p "require('./${release_dir}/package.json').version")
-
-            if npm view "${package_name}@${package_version}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
-              current_tag_version=$(npm view "${package_name}" "dist-tags.${dist_tag}" --json --registry=https://registry.npmjs.org 2>/dev/null | tr -d '"')
-
-              if [[ "${current_tag_version}" == "${package_version}" ]]; then
-                echo "${package_name}@${package_version} is already published with dist-tag ${dist_tag}; skipping publish."
-                return
-              fi
-
-              echo "::error::${package_name}@${package_version} already exists, but dist-tag ${dist_tag} points to ${current_tag_version:-<unset>}."
-              return 1
-            fi
-
-            if [[ "${DRY_RUN}" == "true" ]]; then
-              echo "Would publish ${package_name}@${package_version} with dist-tag ${dist_tag}."
-              return
-            fi
-
-            env -u NODE_AUTH_TOKEN npm publish "${release_dir}" --access public --tag "${dist_tag}" --provenance
-          }
-
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            set +e
-            ensure_push_prerelease_is_safe
-            prerelease_safety_status=$?
-            set -e
-
-            if [[ "${prerelease_safety_status}" == "2" ]]; then
-              exit 0
-            fi
-            if [[ "${prerelease_safety_status}" != "0" ]]; then
-              exit "${prerelease_safety_status}"
-            fi
-
-            prerelease_version=$(node scripts/resolve-next-prerelease-version.mjs)
-            set_package_version "${prerelease_version}"
-            prepare_release_dir
-            publish_release_dir "next"
-          elif [[ "${DRY_RUN}" == "true" ]]; then
-            prepare_release_dir
-            publish_release_dir "latest"
-          else
-            prepare_release_dir
-            publish_release_dir "latest"
-
-            package_name=$(node -p "require('./packages/emulate/.release/package.json').name")
-            package_version=$(node -p "require('./packages/emulate/.release/package.json').version")
-            tag="${package_name}@${package_version}"
-
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-            if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
-              echo "${tag} already exists on origin; skipping tag push."
-              exit 0
-            fi
-
-            git tag -a "${tag}" -m "Release ${tag}"
-            git push origin --tags
+          if [ -n "$FAILED" ]; then
+            echo "Failed to publish:$FAILED"
+            exit 1
           fi
+
+  github-release:
+    name: Create GitHub Release
+    needs: [check-release, publish]
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract changelog entry
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+
+          awk '/<!-- release:start -->/{found=1; next} /<!-- release:end -->/{found=0} found{print}' CHANGELOG.md > /tmp/release-notes.md
+
+          LINES=$(wc -l < /tmp/release-notes.md | tr -d ' ')
+          if [ "$LINES" -lt 2 ]; then
+            echo "Error: No release notes found between <!-- release:start --> and <!-- release:end --> markers in CHANGELOG.md"
+            exit 1
+          fi
+          echo "Extracted release notes for $VERSION ($LINES lines)"
+
+      - name: Create GitHub Release
+        run: |
+          VERSION="${{ needs.check-release.outputs.version }}"
+          TAG="v$VERSION"
+
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG already exists, skipping"
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --target ${{ github.sha }} \
+              --notes-file /tmp/release-notes.md
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

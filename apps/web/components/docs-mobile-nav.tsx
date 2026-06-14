@@ -4,14 +4,16 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { docsNavAllItems, docsNavSections } from "@/lib/docs-navigation";
+import { docsSections as sections } from "@/lib/docs-sections";
+
+const allItems = sections.flatMap((s) => s.items);
 
 export function DocsMobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
   const currentPage = useMemo(() => {
-    return docsNavAllItems.find((page) => page.href === pathname) ?? docsNavAllItems[0];
+    return allItems.find((page) => page.href === pathname) ?? allItems[0];
   }, [pathname]);
 
   return (
@@ -44,7 +46,7 @@ export function DocsMobileNav() {
       <SheetContent side="left" className="overflow-y-auto p-6" showCloseButton={false}>
         <SheetTitle className="mb-6">Table of Contents</SheetTitle>
         <nav className="space-y-6">
-          {docsNavSections.map((section, i) => (
+          {sections.map((section, i) => (
             <div key={i}>
               {section.title && (
                 <div className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-600">

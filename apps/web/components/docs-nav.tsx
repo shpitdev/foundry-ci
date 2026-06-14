@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { docsNavSections } from "@/lib/docs-navigation";
+
+import { docsSections as sections } from "@/lib/docs-sections";
 
 function Sidebar() {
   const pathname = usePathname();
@@ -10,7 +11,7 @@ function Sidebar() {
   return (
     <aside className="hidden w-56 shrink-0 lg:block">
       <nav className="sticky top-20 space-y-6">
-        {docsNavSections.map((section, i) => (
+        {sections.map((section, i) => (
           <div key={i}>
             {section.title && (
               <div className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-neutral-400 dark:text-neutral-600">
