@@ -1,16 +1,18 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
-import type { ModelMessage, UIMessage } from "ai";
+import type { UIMessage } from "ai";
 import { createBashTool } from "bash-tool";
-import { headers } from "next/headers";
 import { allDocsPages } from "@/lib/docs-navigation";
 import { mdxToCleanMarkdown } from "@/lib/mdx-to-markdown";
-import { minuteRateLimit, dailyRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
-const DEFAULT_MODEL = "anthropic/claude-haiku-4.5";
+// Routed through Vercel AI Gateway. Spend is capped by the gateway API key's
+// budget (set via `vercel ai-gateway api-keys create --budget`), so there is no
+// per-request rate limiter here. DeepSeek V4 Flash does implicit prefix caching,
+// so no explicit cache-control headers are needed.
+const DEFAULT_MODEL = "deepseek/deepseek-v4-flash";
 
 const SYSTEM_PROMPT = `You are a helpful documentation assistant for emulate, a local drop-in replacement for Vercel, GitHub, Google, Slack, Apple, Microsoft, AWS, Okta, MongoDB Atlas, Resend, and Stripe APIs used in CI and no-network sandboxes.
 
@@ -53,44 +55,7 @@ async function loadDocsFiles(): Promise<Record<string, string>> {
   return files;
 }
 
-function addCacheControl(messages: ModelMessage[]): ModelMessage[] {
-  if (messages.length === 0) return messages;
-  return messages.map((message, index) => {
-    if (index === messages.length - 1) {
-      return {
-        ...message,
-        providerOptions: {
-          ...message.providerOptions,
-          anthropic: { cacheControl: { type: "ephemeral" } },
-        },
-      };
-    }
-    return message;
-  });
-}
-
 export async function POST(req: Request) {
-  const headersList = await headers();
-  const ip = headersList.get("x-forwarded-for")?.split(",")[0] ?? "anonymous";
-
-  const [minuteResult, dailyResult] = await Promise.all([minuteRateLimit.limit(ip), dailyRateLimit.limit(ip)]);
-
-  if (!minuteResult.success || !dailyResult.success) {
-    const isMinuteLimit = !minuteResult.success;
-    return new Response(
-      JSON.stringify({
-        error: "Rate limit exceeded",
-        message: isMinuteLimit
-          ? "Too many requests. Please wait a moment before trying again."
-          : "Daily limit reached. Please try again tomorrow.",
-      }),
-      {
-        status: 429,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const docsFiles = await loadDocsFiles();
@@ -104,9 +69,6 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
     tools: { bash, readFile: readFileTool },
-    prepareStep: ({ messages: stepMessages }) => ({
-      messages: addCacheControl(stepMessages),
-    }),
   });
 
   return result.toUIMessageStreamResponse();

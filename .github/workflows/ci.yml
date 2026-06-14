@@ -13,7 +13,10 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
+      # Full history so turbo --affected can diff a PR against its base.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -22,16 +25,26 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      # Reuse turbo's cache across runs (no remote cache configured).
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
 
-      - run: pnpm build
+      - run: pnpm install --frozen-lockfile
 
       - run: node scripts/sync-versions.mjs --check
 
       - run: pnpm format:check
 
-      - run: pnpm type-check
-
-      - run: pnpm lint
-
-      - run: pnpm test
+      # PRs build/check only the packages affected since the base branch;
+      # pushes to main run the full graph.
+      - name: Build, type-check, lint, test
+        run: >
+          pnpm exec turbo run build type-check lint test
+          --cache-dir=.turbo
+          ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+        env:
+          TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha || '' }}
