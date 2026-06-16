@@ -1,6 +1,13 @@
 import createMDX from "@next/mdx";
 
-const withMDX = createMDX();
+// Pass remark plugins by string name (not imported functions) so they survive
+// Turbopack's serialization to Rust — see node_modules/next/dist/docs/01-app/02-guides/mdx.md.
+// remark-gfm enables GitHub Flavored Markdown (tables, etc.) in the .mdx docs.
+const withMDX = createMDX({
+  options: {
+    remarkPlugins: ["remark-gfm"],
+  },
+});
 
 const oldDocsSlugs = [
   "programmatic-api",
