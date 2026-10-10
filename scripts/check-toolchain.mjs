@@ -17,3 +17,11 @@ for (const cwd of [root, new URL("examples/nextjs-embedded/", root)]) {
   );
 }
 console.log(`Node ${expectedNode} and pnpm ${expectedPnpm}: root and nested PATH verified`);
+
+const npmVersion = execFileSync("npm", ["--version"], { encoding: "utf8" }).trim();
+const [major, minor, patch] = npmVersion.split(".").map(Number);
+assert.ok(
+  major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))),
+  "npm >=11.5.1 is required for trusted publishing",
+);
+console.log(`npm ${npmVersion}: trusted-publishing client minimum verified`);
