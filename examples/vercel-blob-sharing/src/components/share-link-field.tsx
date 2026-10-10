@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const subscribe = () => () => {};
+const getOrigin = () => window.location.origin;
+const getServerOrigin = () => "";
 
 export function ShareLinkField({ path }: { path: string }) {
   // Render the relative path on the server, then upgrade to the absolute URL
   // once the origin is known on the client.
-  const [url, setUrl] = useState(path);
+  const origin = useSyncExternalStore(subscribe, getOrigin, getServerOrigin);
+  const url = `${origin}${path}`;
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setUrl(`${window.location.origin}${path}`);
-  }, [path]);
 
   async function copy() {
     await navigator.clipboard.writeText(url);

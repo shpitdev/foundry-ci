@@ -27,12 +27,7 @@ export interface StripePrice extends Entity {
 }
 
 export type PaymentIntentStatus =
-  | "requires_payment_method"
-  | "requires_confirmation"
-  | "requires_action"
-  | "processing"
-  | "succeeded"
-  | "canceled";
+  "requires_payment_method" | "requires_confirmation" | "requires_action" | "processing" | "succeeded" | "canceled";
 
 export interface StripePaymentIntent extends Entity {
   stripe_id: string;

@@ -980,3 +980,22 @@ Tokens are configured in the seed config and map to users. Pass them as `Authori
 **Microsoft**: OIDC authorization code flow with PKCE support. Also supports client credentials grants. Microsoft Graph `/v1.0/me` available.
 
 **AWS**: Bearer tokens or IAM access key credentials. Default key pair always seeded: `AKIAIOSFODNN7EXAMPLE` / `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`.
+
+## Repository development
+
+Use [mise](https://mise.jdx.dev/) to select the pinned Node.js and pnpm versions:
+
+```sh
+mise install node pnpm
+mise exec -- pnpm install --frozen-lockfile
+mise exec -- pnpm build
+mise exec -- pnpm test
+```
+
+CI and release jobs use the same `mise.toml`. Keep its pnpm pin aligned with
+`packageManager` in `package.json`. The docs deployment uses Node 24 through
+`apps/web/package.json`; Vercel manages its patch version.
+
+The shared catalog in `pnpm-workspace.yaml` keeps Next.js, MDX, ESLint's Next.js
+config, React and React DOM aligned across the docs app and all examples. Update
+that catalog together and retain the two-day dependency release-age policy.

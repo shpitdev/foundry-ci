@@ -32,5 +32,5 @@ export const PAGE_TITLES: Record<string, string> = {
 };
 
 export function getPageTitle(slug: string): string | null {
-  return slug in PAGE_TITLES ? PAGE_TITLES[slug]! : null;
+  return Object.hasOwn(PAGE_TITLES, slug) ? PAGE_TITLES[slug]! : null;
 }

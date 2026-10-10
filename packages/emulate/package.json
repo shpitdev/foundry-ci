@@ -52,26 +52,26 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "commander": "^14",
+    "commander": "^14.0.3",
     "picocolors": "^1.1.1",
-    "yaml": "^2"
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@emulators/core": "workspace:*",
-    "@emulators/github": "workspace:*",
     "@emulators/apple": "workspace:*",
-    "@emulators/microsoft": "workspace:*",
-    "@emulators/okta": "workspace:*",
     "@emulators/aws": "workspace:*",
-    "@emulators/google": "workspace:*",
-    "@emulators/mongoatlas": "workspace:*",
-    "@emulators/slack": "workspace:*",
-    "@emulators/vercel": "workspace:*",
-    "@emulators/resend": "workspace:*",
-    "@emulators/stripe": "workspace:*",
     "@emulators/clerk": "workspace:*",
+    "@emulators/core": "workspace:*",
     "@emulators/foundry": "workspace:*",
-    "tsup": "^8",
-    "typescript": "^5.7"
+    "@emulators/github": "workspace:*",
+    "@emulators/google": "workspace:*",
+    "@emulators/microsoft": "workspace:*",
+    "@emulators/mongoatlas": "workspace:*",
+    "@emulators/okta": "workspace:*",
+    "@emulators/resend": "workspace:*",
+    "@emulators/slack": "workspace:*",
+    "@emulators/stripe": "workspace:*",
+    "@emulators/vercel": "workspace:*",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
   }
 }

@@ -2,14 +2,28 @@ minimumReleaseAge: 2880
 
 allowBuilds:
   "@mongodb-js/zstd@7.0.0": false
-  "esbuild@0.27.4": false
-  "msw@2.12.13": false
+  "esbuild@0.28.2": false
   "node-liblzma@2.2.0": false
-  "sharp@0.34.5": false
-  "unrs-resolver@1.11.1": false
+  "sharp@0.35.5": false
+  "unrs-resolver@1.12.2": false
 
 packages:
   - "packages/*"
   - "packages/@emulators/*"
   - "apps/*"
   - "examples/*"
+
+# Keep the docs app and every embedded example on the same framework release.
+catalog:
+  next: 16.4.0
+  "@next/mdx": 16.4.0
+  eslint-config-next: 16.4.0
+  react: 19.3.0
+  react-dom: 19.3.0
+
+# Patched Vite floor; the newer 8.3.4 has not cleared the two-day release age.
+overrides:
+  "vite@>=8 <8.3.3": 8.3.3
+  "esbuild@>=0.27.3 <0.28.1": 0.28.2
+  "browserslist@<4.28.7": ^4.29.3
+  "baseline-browser-mapping@<2.11.0": ^2.11.0
