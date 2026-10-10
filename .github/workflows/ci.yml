@@ -44,6 +44,8 @@ jobs:
       - name: Verify toolchain
         run: node scripts/check-toolchain.mjs
 
+      - run: node --test scripts/check-release.test.mjs
+
       - run: node scripts/sync-versions.mjs --check
 
       - run: pnpm format:check

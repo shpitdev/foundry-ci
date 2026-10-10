@@ -29,28 +29,14 @@ jobs:
 
       - uses: jdx/mise-action@v4
 
+      - name: Identify npm client
+        run: |
+          command -v npm
+          npm --version
+
       - name: Compare versions to registry
         id: check
-        run: |
-          LOCAL_VERSION=$(node -p "require('./packages/emulate/package.json').version")
-          SHOULD_RELEASE=false
-
-          REGISTRY_VERSION=$(npm view emulate version 2>/dev/null || echo "0.0.0")
-          echo "emulate — local: $LOCAL_VERSION, registry: $REGISTRY_VERSION"
-          if [ "$LOCAL_VERSION" != "$REGISTRY_VERSION" ]; then
-            SHOULD_RELEASE=true
-          fi
-
-          for pkg in $EMULATOR_PACKAGES; do
-            REGISTRY_VERSION=$(npm view "@emulators/$pkg" version 2>/dev/null || echo "0.0.0")
-            echo "@emulators/$pkg — local: $LOCAL_VERSION, registry: $REGISTRY_VERSION"
-            if [ "$LOCAL_VERSION" != "$REGISTRY_VERSION" ]; then
-              SHOULD_RELEASE=true
-            fi
-          done
-
-          echo "should_release=$SHOULD_RELEASE" >> "$GITHUB_OUTPUT"
-          echo "version=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
+        run: node scripts/check-release.mjs
 
   publish:
     name: Publish
@@ -71,7 +57,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify toolchain
-        run: node scripts/check-toolchain.mjs
+        run: |
+          command -v npm
+          node scripts/check-toolchain.mjs
 
       - name: Build
         run: pnpm build
@@ -80,16 +68,13 @@ jobs:
         run: |
           LOCAL_VERSION="${{ needs.check-release.outputs.version }}"
           FAILED=""
+          # Recheck exact versions in case another release completed during the build.
+          PACKAGES=$(node scripts/check-release.mjs --list)
 
           # pnpm pack resolves workspace:* protocols in the tarball;
           # npm publish handles OIDC trusted-publisher auth.
           publish_pkg() {
             local dir="$1" name="$2"
-            REGISTRY_VERSION=$(npm view "$name" version 2>/dev/null || echo "0.0.0")
-            if [ "$LOCAL_VERSION" = "$REGISTRY_VERSION" ]; then
-              echo "$name@$LOCAL_VERSION already published, skipping"
-              return 0
-            fi
             echo "Publishing $name@$LOCAL_VERSION..."
             TARBALL=$(cd "$dir" && pnpm pack --pack-destination /tmp | tail -1)
             if ! npm publish "$TARBALL" --provenance --access public; then
@@ -97,10 +82,8 @@ jobs:
             fi
           }
 
-          publish_pkg packages/emulate emulate
-
-          for pkg in $EMULATOR_PACKAGES; do
-            publish_pkg "packages/@emulators/$pkg" "@emulators/$pkg"
+          for name in $PACKAGES; do
+            publish_pkg "packages/$name" "$name"
           done
 
           if [ -n "$FAILED" ]; then
