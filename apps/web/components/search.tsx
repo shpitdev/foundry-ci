@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -18,85 +18,88 @@ export function Search() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [error, setError] = useState(false);
 
-  const navigate = useCallback(
-    (href: string) => {
-      setOpen(false);
-      setQuery("");
-      setResults([]);
-      router.push(href);
-    },
-    [router],
-  );
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+  const cancelSearch = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    abortRef.current?.abort();
   }, []);
 
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 0);
-    } else {
+  const changeOpen = useCallback(
+    (nextOpen: boolean) => {
+      cancelSearch();
+      setOpen(nextOpen);
       setQuery("");
       setResults([]);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (!q) {
-      setResults([]);
       setLoading(false);
-      return;
-    }
+      setError(false);
+      setActiveIndex(0);
+    },
+    [cancelSearch],
+  );
 
-    setLoading(true);
-    abortRef.current?.abort();
+  // React's ref lifecycle owns the global shortcut subscription.
+  const shortcutRef = useCallback(
+    (node: HTMLButtonElement | null) => {
+      if (!node) return;
+      function onKeyDown(e: KeyboardEvent) {
+        if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+          e.preventDefault();
+          changeOpen(!open);
+        }
+      }
+      document.addEventListener("keydown", onKeyDown);
+      return () => document.removeEventListener("keydown", onKeyDown);
+    },
+    [open, changeOpen],
+  );
+
+  const inputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (node) return cancelSearch;
+    },
+    [cancelSearch],
+  );
+
+  function navigate(href: string) {
+    changeOpen(false);
+    router.push(href);
+  }
+
+  function changeQuery(value: string) {
+    cancelSearch();
+    setQuery(value);
+    setResults([]);
+    setActiveIndex(0);
+    setError(false);
+    const q = value.trim();
+    setLoading(Boolean(q));
+    if (!q) return;
+
     const controller = new AbortController();
     abortRef.current = controller;
-
-    const timeout = setTimeout(async () => {
+    timeoutRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
           signal: controller.signal,
         });
-        if (res.ok) {
-          const data = await res.json();
-          setResults(data.results);
-        }
+        if (!res.ok) throw new Error("Search failed");
+        const data = await res.json();
+        if (!controller.signal.aborted) setResults(data.results);
       } catch {
-        // aborted or network error
+        if (!controller.signal.aborted) setError(true);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     }, 150);
-
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [query]);
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [results]);
+  }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+      setActiveIndex((i) => Math.max(0, Math.min(i + 1, results.length - 1)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIndex((i) => Math.max(i - 1, 0));
@@ -106,17 +109,13 @@ export function Search() {
     }
   }
 
-  useEffect(() => {
-    const active = listRef.current?.querySelector("[data-active='true']");
-    active?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex]);
-
   const hasQuery = query.trim().length > 0;
 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        ref={shortcutRef}
+        onClick={() => changeOpen(true)}
         className="hidden sm:flex items-center gap-2 rounded-md border border-border/50 bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-foreground/25 transition-colors"
       >
         <svg
@@ -140,7 +139,7 @@ export function Search() {
       </button>
 
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => changeOpen(true)}
         className="sm:hidden flex items-center text-muted-foreground hover:text-foreground transition-colors"
         aria-label="Search docs"
       >
@@ -160,7 +159,7 @@ export function Search() {
         </svg>
       </button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={changeOpen}>
         <DialogContent showCloseButton={false} aria-describedby={undefined} className="gap-0 p-0 sm:max-w-lg">
           <DialogTitle className="sr-only">Search documentation</DialogTitle>
           <div className="flex items-center gap-2 border-b border-border/50 px-3">
@@ -182,13 +181,17 @@ export function Search() {
             <input
               ref={inputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => changeQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search docs..."
               className="flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
             />
             {query && (
-              <button onClick={() => setQuery("")} className="text-muted-foreground hover:text-foreground">
+              <button
+                aria-label="Clear search"
+                onClick={() => changeQuery("")}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="14"
@@ -207,11 +210,15 @@ export function Search() {
             )}
           </div>
 
-          <div ref={listRef} className="max-h-[min(60vh,400px)] overflow-y-auto p-2">
+          <div className="max-h-[min(60vh,400px)] overflow-y-auto p-2">
             {loading && hasQuery ? (
               <div className="flex items-center justify-center py-6">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
               </div>
+            ) : error ? (
+              <p role="alert" className="py-6 text-center text-sm text-muted-foreground">
+                Search is unavailable. Try again.
+              </p>
             ) : hasQuery && results.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">No results found.</p>
             ) : !hasQuery ? (
@@ -221,6 +228,9 @@ export function Search() {
                 <button
                   key={item.href}
                   data-active={i === activeIndex}
+                  ref={(node) => {
+                    if (i === activeIndex) node?.scrollIntoView({ block: "nearest" });
+                  }}
                   onClick={() => navigate(item.href)}
                   onMouseEnter={() => setActiveIndex(i)}
                   className={cn(
