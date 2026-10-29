@@ -21,6 +21,10 @@ catalog:
   react: 19.3.1
   react-dom: 19.3.1
 
-# @ai-sdk/provider-utils and @vercel/blob still resolve undici 6.29.0.
+# Security floors for transitive dependencies whose parents pin exact vulnerable
+# versions. Drop each one once its parent ships a release that pins a patched one.
 overrides:
-  "undici@>=6 <6.29.1": 6.29.1
+  # just-bash 3.6.0 pins guarded-fetch 0.1.3, which pins undici 7.29.0.
+  "undici@>=7 <7.30.1": 7.30.1
+  # @vercel/oidc pins @vercel/cli-config 0.3.1, which pins zod 4.1.11.
+  "zod@>=4 <4.6.6": 4.6.7
