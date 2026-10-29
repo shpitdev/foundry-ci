@@ -10,7 +10,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@base-ui/react": "^1.8.0",
+    "@base-ui/react": "^1.9.0",
     "@emulators/adapter-next": "workspace:*",
     "@emulators/github": "workspace:*",
     "@emulators/google": "workspace:*",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^24.19.1",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",

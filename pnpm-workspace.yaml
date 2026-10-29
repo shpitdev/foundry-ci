@@ -15,15 +15,12 @@ packages:
 
 # Keep the docs app and every embedded example on the same framework release.
 catalog:
-  next: 16.4.0
-  "@next/mdx": 16.4.0
-  eslint-config-next: 16.4.0
-  react: 19.3.0
-  react-dom: 19.3.0
+  next: 16.4.3
+  "@next/mdx": 16.4.3
+  eslint-config-next: 16.4.3
+  react: 19.3.1
+  react-dom: 19.3.1
 
-# Patched Vite floor; the newer 8.3.4 has not cleared the two-day release age.
+# @ai-sdk/provider-utils and @vercel/blob still resolve undici 6.29.0.
 overrides:
-  "vite@>=8 <8.3.3": 8.3.3
-  "esbuild@>=0.27.3 <0.28.1": 0.28.2
-  "browserslist@<4.28.7": ^4.29.3
-  "baseline-browser-mapping@<2.11.0": ^2.11.0
+  "undici@>=6 <6.29.1": 6.29.1
